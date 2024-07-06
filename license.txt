@@ -1,0 +1,8 @@
+Model Information:
+* title:	Talking
+* source:	https://sketchfab.com/3d-models/talking-4ca9c2c289304432a93b97c75db36938
+* author:	sarasp144972 (https://sketchfab.com/sarasp144972)
+
+Model License:
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works
