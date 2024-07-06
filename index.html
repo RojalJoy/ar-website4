@@ -13,16 +13,25 @@
             display: block;
         }
     </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+                "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js",
+                "three/examples/jsm/webxr/ARButton.js": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js"
+            }
+        }
+    </script>
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@webxr-input-profiles/motion-controllers@1.0.0"></script>
     <script type="module">
-        import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js";
-        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
-        import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js';
+        import * as THREE from 'three';
+        import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
+        import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-        let camera, scene, renderer, loader;
+        let camera, scene, renderer;
 
         init();
         animate();
@@ -42,13 +51,13 @@
 
             document.body.appendChild(ARButton.createButton(renderer));
 
-            loader = new GLTFLoader();
-            loader.load('scene.gltf', function (gltf) {
+            const loader = new GLTFLoader();
+            loader.load('scene.gltf', function(gltf) {
                 const model = gltf.scene;
-                model.scale.set(0.1, 0.1, 0.1); // Scale the model down if it's too large
-                model.position.set(0, 0, -0.3);
+                model.scale.set(0.1, 0.1, 0.1);
+                model.position.set(0, -0.1, -0.25);
                 scene.add(model);
-            }, undefined, function (error) {
+            }, undefined, function(error) {
                 console.error(error);
             });
 
