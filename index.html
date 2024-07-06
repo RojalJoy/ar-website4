@@ -52,7 +52,7 @@
             document.body.appendChild(ARButton.createButton(renderer));
 
             const loader = new GLTFLoader();
-            loader.load('path/to/your/extracted/scene.gltf', function(gltf) {
+            loader.load('scene.gltf', function(gltf) {
                 const model = gltf.scene;
                 model.scale.set(0.1, 0.1, 0.1);
                 model.position.set(0, -0.1, -0.25);
