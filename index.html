@@ -109,7 +109,7 @@
                             const blob = new Blob(chunks, { 'type': 'audio/ogg; codecs=opus' });
                             chunks = [];
                             const audioURL = URL.createObjectURL(blob);
-                            sendAudioToAI(audioURL);
+                            sendAudioToAI(blob);
                         }
 
                         mediaRecorder.ondataavailable = function(e) {
@@ -133,28 +133,24 @@
             }
         }
 
-        function sendAudioToAI(audioURL) {
-            fetch(audioURL)
-                .then(response => response.blob())
-                .then(blob => {
-                    const formData = new FormData();
-                    formData.append('file', blob, 'audio.ogg');
+        function sendAudioToAI(blob) {
+            const formData = new FormData();
+            formData.append('file', blob, 'audio.ogg');
 
-                    fetch('/process_audio', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('AI Response:', data);
-                        if (data.text) {
-                            textToSpeech(data.text);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error sending audio to AI:', error);
-                    });
-                });
+            fetch('http://localhost:5000/process_audio', { // Change to your backend URL
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('AI Response:', data);
+                if (data.text) {
+                    textToSpeech(data.text);
+                }
+            })
+            .catch(error => {
+                console.error('Error sending audio to AI:', error);
+            });
         }
 
         function textToSpeech(text) {
