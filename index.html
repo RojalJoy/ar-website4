@@ -64,9 +64,6 @@
                 if (clips && clips.length > 0) {
                     clips.forEach(clip => mixer.clipAction(clip).play());
                 }
-
-                // Trigger speech synthesis
-                speak("Hello! I am your AR model speaking to you.");
             }, undefined, function(error) {
                 console.error(error);
             });
@@ -109,6 +106,7 @@
             if (reticle.visible) {
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
+                speak("Hello! I am your AR model speaking to you.");
             }
         }
 
