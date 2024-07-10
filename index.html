@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple AR Example with AI Integration</title>
+    <title>Simple AR Example with Speech</title>
     <style>
         body {
             margin: 0;
@@ -35,7 +35,6 @@
 
         init();
         animate();
-        initAudio();
 
         function init() {
             scene = new THREE.Scene();
@@ -64,6 +63,10 @@
                 if (clips && clips.length > 0) {
                     clips.forEach(clip => mixer.clipAction(clip).play());
                 }
+
+                // Trigger speech synthesis
+                speak("Hello! I am your AR model speaking to you.");
+
             }, undefined, function(error) {
                 console.error(error);
             });
@@ -88,75 +91,11 @@
             renderer.render(scene, camera);
         }
 
-        // Initialize audio capture
-        function initAudio() {
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                console.log('getUserMedia supported.');
-
-                const constraints = { audio: true };
-                let chunks = [];
-
-                navigator.mediaDevices.getUserMedia(constraints)
-                    .then(function(stream) {
-                        const mediaRecorder = new MediaRecorder(stream);
-
-                        mediaRecorder.onstart = function(e) {
-                            console.log('Recording started');
-                        }
-
-                        mediaRecorder.onstop = function(e) {
-                            console.log('Recording stopped');
-                            const blob = new Blob(chunks, { 'type': 'audio/ogg; codecs=opus' });
-                            chunks = [];
-                            const audioURL = URL.createObjectURL(blob);
-                            sendAudioToAI(blob);
-                        }
-
-                        mediaRecorder.ondataavailable = function(e) {
-                            chunks.push(e.data);
-                        }
-
-                        document.body.addEventListener('click', () => {
-                            if (mediaRecorder.state === 'inactive') {
-                                mediaRecorder.start();
-                                setTimeout(() => {
-                                    mediaRecorder.stop();
-                                }, 5000); // Record for 5 seconds
-                            }
-                        });
-                    })
-                    .catch(function(err) {
-                        console.error('The following getUserMedia error occurred: ' + err);
-                    });
-            } else {
-                console.error('getUserMedia not supported on your browser!');
-            }
-        }
-
-        function sendAudioToAI(blob) {
-            const formData = new FormData();
-            formData.append('file', blob, 'audio.ogg');
-
-            fetch('http://localhost:5000/process_audio', { // Change to your backend URL
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('AI Response:', data);
-                if (data.text) {
-                    textToSpeech(data.text);
-                }
-            })
-            .catch(error => {
-                console.error('Error sending audio to AI:', error);
-            });
-        }
-
-        function textToSpeech(text) {
+        // Function to trigger speech synthesis
+        function speak(text) {
             const synth = window.speechSynthesis;
-            const utterance = new SpeechSynthesisUtterance(text);
-            synth.speak(utterance);
+            const utterThis = new SpeechSynthesisUtterance(text);
+            synth.speak(utterThis);
         }
     </script>
 </body>
