@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple AR Example</title>
+    <title>Simple AR Example with Placement and Speech</title>
     <style>
         body {
             margin: 0;
@@ -31,7 +31,7 @@
         import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
         import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-        let camera, scene, renderer, mixer;
+        let camera, scene, renderer, mixer, model;
 
         init();
         animate();
@@ -53,9 +53,8 @@
 
             const loader = new GLTFLoader();
             loader.load('scene.gltf', function(gltf) {
-                const model = gltf.scene;
+                model = gltf.scene;
                 model.scale.set(0.05, 0.05, 0.05);
-                model.position.set(0, -0.1, -0.25);
                 scene.add(model);
 
                 mixer = new THREE.AnimationMixer(model);
@@ -63,17 +62,37 @@
                 if (clips && clips.length > 0) {
                     clips.forEach(clip => mixer.clipAction(clip).play());
                 }
+
+                // Trigger speech synthesis
+                speak("Hello! I am your AR model speaking to you.");
             }, undefined, function(error) {
                 console.error(error);
             });
 
             window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('click', onClick, false);
         }
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onClick(event) {
+            // Convert screen coordinates to normalized device coordinates (-1 to +1)
+            const x = (event.clientX / window.innerWidth) * 2 - 1;
+            const y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // Use raycasting to place the model
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+            const intersects = raycaster.intersectObject(scene, true);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                model.position.copy(intersect.point);
+            }
         }
 
         function animate() {
@@ -85,6 +104,13 @@
                 mixer.update(0.01); // Update the animation mixer, adjusting the time as needed
             }
             renderer.render(scene, camera);
+        }
+
+        // Function to trigger speech synthesis
+        function speak(text) {
+            const synth = window.speechSynthesis;
+            const utterThis = new SpeechSynthesisUtterance(text);
+            synth.speak(utterThis);
         }
     </script>
 </body>
