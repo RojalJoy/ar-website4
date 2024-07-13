@@ -107,8 +107,8 @@
                 mixer.update(0.01); // Update the animation mixer, adjusting the time as needed
             }
 
-            if (hitTestSourceRequested === false) {
-                const session = renderer.xr.getSession();
+            const session = renderer.xr.getSession();
+            if (session && !hitTestSourceRequested) {
                 session.requestReferenceSpace('viewer').then((referenceSpace) => {
                     session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                         hitTestSource = source;
