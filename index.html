@@ -34,7 +34,8 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         let model = null;
-        let resizeButton = null;
+        let increaseButton = null;
+        let decreaseButton = null;
         let currentScale = 0.05;
 
         init();
@@ -84,7 +85,7 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            createResizeButton();
+            createResizeButtons();
 
             window.addEventListener('resize', onWindowResize, false);
         }
@@ -103,24 +104,51 @@
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
-                resizeButton.visible = true; // Show resize button when model is placed
-                resizeButton.position.setFromMatrixPosition(reticle.matrix);
-                resizeButton.position.y += 0.1; // Position the button slightly above the model
+                setButtonVisibility(true); // Show resize buttons when model is placed
+                positionResizeButtons(reticle.matrix);
             }
         }
 
-        function createResizeButton() {
+        function createResizeButtons() {
             const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
-            const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            resizeButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-            resizeButton.visible = false; // Initially hide the button
-            scene.add(resizeButton);
+            const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-            resizeButton.userData = { isButton: true };
+            increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
+            increaseButton.visible = false; // Initially hide the button
+            increaseButton.userData = { isIncreaseButton: true };
+            scene.add(increaseButton);
+
+            decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
+            decreaseButton.visible = false; // Initially hide the button
+            decreaseButton.userData = { isDecreaseButton: true };
+            scene.add(decreaseButton);
         }
 
-        function onResizeButtonClick() {
-            currentScale += 0.01;
+        function setButtonVisibility(visible) {
+            increaseButton.visible = visible;
+            decreaseButton.visible = visible;
+        }
+
+        function positionResizeButtons(matrix) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(matrix);
+
+            increaseButton.position.copy(position);
+            increaseButton.position.y += 0.1; // Position the increase button above the model
+            increaseButton.position.x -= 0.1; // Position to the left
+
+            decreaseButton.position.copy(position);
+            decreaseButton.position.y += 0.1; // Position the decrease button above the model
+            decreaseButton.position.x += 0.1; // Position to the right
+        }
+
+        function onResizeButtonClick(increase) {
+            if (increase) {
+                currentScale += 0.01;
+            } else {
+                currentScale = Math.max(0.01, currentScale - 0.01);
+            }
             if (model) {
                 model.scale.set(currentScale, currentScale, currentScale);
                 console.log('Resized model to scale:', currentScale);
@@ -183,8 +211,10 @@
             const intersects = raycaster.intersectObjects(scene.children, true);
             if (intersects.length > 0) {
                 const intersect = intersects[0];
-                if (intersect.object.userData.isButton) {
-                    onResizeButtonClick();
+                if (intersect.object.userData.isIncreaseButton) {
+                    onResizeButtonClick(true);
+                } else if (intersect.object.userData.isDecreaseButton) {
+                    onResizeButtonClick(false);
                 }
             }
         }
