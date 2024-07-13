@@ -12,6 +12,13 @@
         canvas {
             display: block;
         }
+        #resizeSliderContainer {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+        }
     </style>
     <script type="importmap">
         {
@@ -24,6 +31,9 @@
     </script>
 </head>
 <body>
+    <div id="resizeSliderContainer">
+        <input type="range" id="resizeSlider" min="0.01" max="0.1" step="0.01" value="0.05">
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -83,6 +93,9 @@
             scene.add(reticle);
 
             window.addEventListener('resize', onWindowResize, false);
+
+            const resizeSlider = document.getElementById('resizeSlider');
+            resizeSlider.addEventListener('input', onResizeSliderChange);
         }
 
         function onWindowResize() {
@@ -99,6 +112,14 @@
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
+            }
+        }
+
+        function onResizeSliderChange(event) {
+            const scale = parseFloat(event.target.value);
+            console.log('Resizing model to scale:', scale);
+            if (model) {
+                model.scale.set(scale, scale, scale);
             }
         }
 
