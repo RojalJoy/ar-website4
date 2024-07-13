@@ -218,6 +218,51 @@
                 }
             }
         }
+
+        // Include this in your AR website's JavaScript code
+
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event) => {
+            const speechResult = event.results[0][0].transcript;
+            console.log('Speech result: ', speechResult);
+            // Send the text to the Streamlit app
+            sendTextToStreamlit(speechResult);
+        };
+
+        recognition.start();
+
+        function sendTextToStreamlit(text) {
+            fetch('https://dvfktgvdoygmix7ub7stu7.streamlit.app/api', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Received from Streamlit:', data);
+                // Display the questions or handle the response as needed
+                displayQuestions(data.questions);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function displayQuestions(questions) {
+            const questionList = document.createElement('ul');
+            questions.forEach((question) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = question;
+                questionList.appendChild(listItem);
+            });
+            document.body.appendChild(questionList);
+        }
     </script>
 </body>
 </html>
