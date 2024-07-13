@@ -25,7 +25,6 @@
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@webxr-input-profiles/motion-controllers@1.0.0"></script>
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
@@ -40,6 +39,7 @@
         animate();
 
         function init() {
+            console.log('Initializing scene...');
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -56,6 +56,7 @@
 
             const loader = new GLTFLoader();
             loader.load('scene.gltf', function(gltf) {
+                console.log('GLTF model loaded.');
                 model = gltf.scene;
                 model.scale.set(0.05, 0.05, 0.05);
                 model.visible = false; // Initially hide the model
@@ -67,7 +68,7 @@
                     clips.forEach(clip => mixer.clipAction(clip).play());
                 }
             }, undefined, function(error) {
-                console.error(error);
+                console.error('Error loading GLTF model:', error);
             });
 
             controller = renderer.xr.getController(0);
@@ -85,13 +86,16 @@
         }
 
         function onWindowResize() {
+            console.log('Window resized.');
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
         function onSelect() {
+            console.log('Controller select event.');
             if (reticle.visible && model) {
+                console.log('Placing model at reticle position.');
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
@@ -109,12 +113,15 @@
 
             const session = renderer.xr.getSession();
             if (session && !hitTestSourceRequested) {
+                console.log('Requesting hit test source.');
                 session.requestReferenceSpace('viewer').then((referenceSpace) => {
                     session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                         hitTestSource = source;
+                        console.log('Hit test source obtained.');
                     });
                 });
                 session.addEventListener('end', () => {
+                    console.log('XR session ended.');
                     hitTestSourceRequested = false;
                     hitTestSource = null;
                 });
