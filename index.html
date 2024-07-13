@@ -12,13 +12,6 @@
         canvas {
             display: block;
         }
-        #resizeSliderContainer {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1;
-        }
     </style>
     <script type="importmap">
         {
@@ -31,9 +24,6 @@
     </script>
 </head>
 <body>
-    <div id="resizeSliderContainer">
-        <input type="range" id="resizeSlider" min="0.01" max="0.1" step="0.01" value="0.05">
-    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -44,6 +34,8 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         let model = null;
+        let resizeButton = null;
+        let currentScale = 0.05;
 
         init();
         animate();
@@ -68,7 +60,7 @@
             loader.load('scene.gltf', function(gltf) {
                 console.log('GLTF model loaded.');
                 model = gltf.scene;
-                model.scale.set(0.05, 0.05, 0.05);
+                model.scale.set(currentScale, currentScale, currentScale);
                 model.visible = false; // Initially hide the model
                 scene.add(model);
 
@@ -92,10 +84,9 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            window.addEventListener('resize', onWindowResize, false);
+            createResizeButton();
 
-            const resizeSlider = document.getElementById('resizeSlider');
-            resizeSlider.addEventListener('input', onResizeSliderChange);
+            window.addEventListener('resize', onWindowResize, false);
         }
 
         function onWindowResize() {
@@ -112,14 +103,27 @@
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
+                resizeButton.visible = true; // Show resize button when model is placed
+                resizeButton.position.setFromMatrixPosition(reticle.matrix);
+                resizeButton.position.y += 0.1; // Position the button slightly above the model
             }
         }
 
-        function onResizeSliderChange(event) {
-            const scale = parseFloat(event.target.value);
-            console.log('Resizing model to scale:', scale);
+        function createResizeButton() {
+            const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
+            const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            resizeButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+            resizeButton.visible = false; // Initially hide the button
+            scene.add(resizeButton);
+
+            resizeButton.userData = { isButton: true };
+        }
+
+        function onResizeButtonClick() {
+            currentScale += 0.01;
             if (model) {
-                model.scale.set(scale, scale, scale);
+                model.scale.set(currentScale, currentScale, currentScale);
+                console.log('Resized model to scale:', currentScale);
             }
         }
 
@@ -163,7 +167,26 @@
                 }
             }
 
+            handleButtonInteractions();
+
             renderer.render(scene, camera);
+        }
+
+        function handleButtonInteractions() {
+            const controller = renderer.xr.getController(0);
+            const tempMatrix = new THREE.Matrix4();
+            tempMatrix.identity().extractRotation(controller.matrixWorld);
+            const raycaster = new THREE.Raycaster();
+            raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                if (intersect.object.userData.isButton) {
+                    onResizeButtonClick();
+                }
+            }
         }
     </script>
 </body>
