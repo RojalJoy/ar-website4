@@ -22,6 +22,9 @@
             }
         }
     </script>
+    <!-- Add Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -29,6 +32,28 @@
         import * as THREE from 'three';
         import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
         import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+
+            apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
+
+            authDomain: "ar-mock-interview.firebaseapp.com",
+
+            projectId: "ar-mock-interview",
+
+            storageBucket: "ar-mock-interview.appspot.com",
+
+            messagingSenderId: "661111146672",
+
+            appId: "1:661111146672:web:ed016077153436b6059375"
+
+            };
+
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         let camera, scene, renderer, mixer, controller, reticle;
         let hitTestSource = null;
@@ -113,11 +138,15 @@
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
+            recognition.onstart = () => {
+                console.log('Speech recognition started.');
+            };
+
             recognition.onresult = (event) => {
                 const speechResult = event.results[0][0].transcript;
-                console.log('Speech result: ', speechResult);
-                // Send the text to the Streamlit app
-                sendTextToStreamlit(speechResult);
+                console.log('Speech result:', speechResult);
+                // Send the text to the Firebase
+                sendTextToFirebase(speechResult);
             };
 
             recognition.onspeechend = () => {
@@ -135,6 +164,17 @@
             };
 
             recognition.start();
+        }
+
+        function sendTextToFirebase(text) {
+            db.collection("AR Mock Interview- voice-01").add({
+                speechResult: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then((docRef) => {
+                console.log("Document written with ID: ", docRef.id);
+            }).catch((error) => {
+                console.error("Error adding document: ", error);
+            });
         }
 
         function onWindowResize() {
@@ -208,77 +248,35 @@
 
         function render(timestamp, frame) {
             if (mixer) {
-                mixer.update(0.01); // Update the animation mixer, adjusting the time as needed
+                mixer.update(timestamp * 0.001); // Update the animation mixer
             }
-
-            const session = renderer.xr.getSession();
-            if (session && !hitTestSourceRequested) {
-                console.log('Requesting hit test source.');
-                session.requestReferenceSpace('viewer').then((referenceSpace) => {
-                    session.requestHitTestSource({ space: referenceSpace }).then((source) => {
-                        hitTestSource = source;
-                        console.log('Hit test source obtained.');
-                    });
-                });
-                session.addEventListener('end', () => {
-                    console.log('XR session ended.');
-                    hitTestSourceRequested = false;
-                    hitTestSource = null;
-                });
-                hitTestSourceRequested = true;
-            }
-
-            if (hitTestSource && frame) {
+            if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-                if (hitTestResults.length > 0) {
-                    const hit = hitTestResults[0];
-
-                    reticle.visible = true;
-                    reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-                } else {
-                    reticle.visible = false;
+                const session = renderer.xr.getSession();
+                if (hitTestSourceRequested === false) {
+                    session.requestReferenceSpace('viewer').then(function(referenceSpace) {
+                        session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
+                            hitTestSource = source;
+                        });
+                    });
+                    session.addEventListener('end', function() {
+                        hitTestSourceRequested = false;
+                        hitTestSource = null;
+                    });
+                    hitTestSourceRequested = true;
+                }
+                if (hitTestSource) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    if (hitTestResults.length) {
+                        const hit = hitTestResults[0];
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                    } else {
+                        reticle.visible = false;
+                    }
                 }
             }
-
-            handleButtonInteractions();
-
             renderer.render(scene, camera);
-        }
-
-        function handleButtonInteractions() {
-            const controller = renderer.xr.getController(0);
-            const tempMatrix = new THREE.Matrix4();
-            tempMatrix.identity().extractRotation(controller.matrixWorld);
-            const raycaster = new THREE.Raycaster();
-            raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-            const intersects = raycaster.intersectObjects([increaseButton, decreaseButton]);
-
-            if (intersects.length > 0) {
-                const intersectedButton = intersects[0].object;
-                if (intersectedButton.userData.isIncreaseButton) {
-                    onResizeButtonClick(true);
-                } else if (intersectedButton.userData.isDecreaseButton) {
-                    onResizeButtonClick(false);
-                }
-            }
-        }
-
-        function sendTextToStreamlit(text) {
-            console.log('Sending text to Streamlit:', text);
-            fetch('http://localhost:8501/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ text: text })
-            })
-            .then(response => response.json())
-            .then(data => console.log('Streamlit response:', data))
-            .catch(error => console.error('Error sending text to Streamlit:', error));
         }
     </script>
 </body>
