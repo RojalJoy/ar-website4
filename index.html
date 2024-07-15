@@ -37,6 +37,7 @@
         let increaseButton = null;
         let decreaseButton = null;
         let currentScale = 0.05;
+        let recognition;
 
         // Initialize the scene
         init();
@@ -100,6 +101,40 @@
 
             // Add a window resize event listener
             window.addEventListener('resize', onWindowResize, false);
+
+            // Initialize speech recognition
+            setupSpeechRecognition();
+        }
+
+        function setupSpeechRecognition() {
+            console.log('Setting up speech recognition...');
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                console.log('Speech result: ', speechResult);
+                // Send the text to the Streamlit app
+                sendTextToStreamlit(speechResult);
+            };
+
+            recognition.onspeechend = () => {
+                console.log('Speech ended.');
+                recognition.stop();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+            };
+
+            recognition.onend = () => {
+                console.log('Speech recognition service disconnected. Restarting...');
+                recognition.start();
+            };
+
+            recognition.start();
         }
 
         function onWindowResize() {
@@ -220,48 +255,30 @@
             raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
             raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-            const intersects = raycaster.intersectObjects(scene.children, true);
+            const intersects = raycaster.intersectObjects([increaseButton, decreaseButton]);
+
             if (intersects.length > 0) {
-                const intersect = intersects[0];
-                if (intersect.object.userData.isIncreaseButton) {
+                const intersectedButton = intersects[0].object;
+                if (intersectedButton.userData.isIncreaseButton) {
                     onResizeButtonClick(true);
-                } else if (intersect.object.userData.isDecreaseButton) {
+                } else if (intersectedButton.userData.isDecreaseButton) {
                     onResizeButtonClick(false);
                 }
             }
         }
 
-        // Speech recognition setup
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-
-        recognition.onresult = (event) => {
-            const speechResult = event.results[0][0].transcript;
-            console.log('Speech result: ', speechResult);
-            // Send the text to the Streamlit app
-            sendTextToStreamlit(speechResult);
-        };
-
-        recognition.start();
-
         function sendTextToStreamlit(text) {
             console.log('Sending text to Streamlit:', text);
-            fetch('https://dvfktgvdoygmix7ub7stu7.streamlit.app/api', {
+            fetch('http://localhost:8501/submit', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ text: text }),
+                body: JSON.stringify({ text: text })
             })
             .then(response => response.json())
-            .then(data => {
-                console.log('Response from Streamlit:', data);
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
+            .then(data => console.log('Streamlit response:', data))
+            .catch(error => console.error('Error sending text to Streamlit:', error));
         }
     </script>
 </body>
