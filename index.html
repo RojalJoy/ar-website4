@@ -12,18 +12,11 @@
         canvas {
             display: block;
         }
-        #slider-container {
+        #size-slider {
             position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 10px;
+            left: 10px;
             width: 300px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 10px;
-        }
-        #slider {
-            width: 100%;
         }
     </style>
     <script type="importmap">
@@ -40,9 +33,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <div id="slider-container">
-        <input type="range" id="slider" min="0.01" max="0.2" step="0.01" value="0.05">
-    </div>
+    <input type="range" id="size-slider" min="0.01" max="0.2" step="0.01" value="0.05">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -130,6 +121,9 @@
             reticle.visible = false;
             scene.add(reticle);
 
+            // Create the slider for resizing the model
+            createSlider();
+
             // Create the start speech recognition button
             createSpeechButton();
 
@@ -144,10 +138,6 @@
 
             // Randomly select and read text from Firebase
             randomlySelectTextFromFirebase();
-
-            // Add event listener to the slider
-            const slider = document.getElementById('slider');
-            slider.addEventListener('input', onSliderChange);
         }
 
         function setupSpeechRecognition() {
@@ -247,65 +237,14 @@
         }
 
         function onSelect() {
-            console.log('Controller select pressed.');
-            if (reticle.visible) {
+            console.log('Controller select event.');
+            if (reticle.visible && model) {
+                console.log('Placing model at reticle position.');
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
-
-                // Set button visibility and position
-                setButtonVisibility(true);
+                reticle.visible = false;
+                setSliderVisibility(true); // Show slider when model is placed
                 positionButtons(reticle.matrix);
-            }
-        }
-
-        function createSpeechButton() {
-            const buttonGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.01);
-            const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-            startSpeechButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-            startSpeechButton.visible = false; // Initially hide the button
-            startSpeechButton.userData = { isSpeechButton: true };
-            scene.add(startSpeechButton);
-        }
-
-        function positionButtons(matrix) {
-            positionSpeechButton(matrix);
-            positionSpeakTextButton(matrix);
-        }
-
-        function positionSpeechButton(matrix) {
-            const position = new THREE.Vector3();
-            position.setFromMatrixPosition(matrix);
-
-            startSpeechButton.position.copy(position);
-            startSpeechButton.position.y -= 0.15; // Position below the model
-        }
-
-        function createSpeakTextButton() {
-            const buttonGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.01);
-            const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            speakTextButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
-            speakTextButton.visible = false; // Initially hide the button
-            speakTextButton.userData = { isSpeakTextButton: true };
-            scene.add(speakTextButton);
-        }
-
-        function positionSpeakTextButton(matrix) {
-            const position = new THREE.Vector3();
-            position.setFromMatrixPosition(matrix);
-
-            speakTextButton.position.copy(position);
-            speakTextButton.position.y -= 0.3; // Position further below the speech button
-        }
-
-        function setButtonVisibility(visible) {
-            startSpeechButton.visible = visible;
-            speakTextButton.visible = visible;
-        }
-
-        function onSliderChange(event) {
-            currentScale = parseFloat(event.target.value);
-            if (model) {
-                model.scale.set(currentScale, currentScale, currentScale);
             }
         }
 
@@ -314,18 +253,22 @@
         }
 
         function render(timestamp, frame) {
+            if (model) {
+                mixer.update(0.01);
+            }
+
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
                 if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
-                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                    session.requestReferenceSpace('viewer').then(function(viewerReferenceSpace) {
+                        session.requestHitTestSource({ space: viewerReferenceSpace }).then(function(source) {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', () => {
+                    session.addEventListener('end', function() {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -347,41 +290,74 @@
                 }
             }
 
-            if (mixer) mixer.update(0.01);
-
             renderer.render(scene, camera);
         }
 
-        window.addEventListener('click', (event) => {
-            const mouse = new THREE.Vector2(
-                (event.clientX / window.innerWidth) * 2 - 1,
-                -(event.clientY / window.innerHeight) * 2 + 1
-            );
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(mouse, camera);
-
-            const intersects = raycaster.intersectObjects([startSpeechButton, speakTextButton]);
-
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-
-                if (object.userData.isSpeechButton) {
-                    console.log('Start speech button clicked.');
-                    recognition.start();
-                } else if (object.userData.isSpeakTextButton) {
-                    console.log('Speak text button clicked.');
-                    speakText(fetchedText);
+        function createSlider() {
+            console.log('Creating slider...');
+            const slider = document.getElementById('size-slider');
+            slider.addEventListener('input', (event) => {
+                currentScale = parseFloat(event.target.value);
+                if (model) {
+                    model.scale.set(currentScale, currentScale, currentScale);
                 }
-            }
-        });
+            });
+        }
 
-        function speakText(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US';
-            speechSynthesis.speak(utterance);
+        function createSpeechButton() {
+            console.log('Creating start speech recognition button...');
+            startSpeechButton = document.createElement('button');
+            startSpeechButton.innerHTML = 'Start Speech Recognition';
+            startSpeechButton.style.position = 'absolute';
+            startSpeechButton.style.bottom = '10px';
+            startSpeechButton.style.left = '10px';
+            startSpeechButton.style.zIndex = '999';
+            startSpeechButton.addEventListener('click', startSpeechRecognition);
+            document.body.appendChild(startSpeechButton);
+        }
+
+        function createSpeakTextButton() {
+            console.log('Creating speak text button...');
+            speakTextButton = document.createElement('button');
+            speakTextButton.innerHTML = 'Speak Text';
+            speakTextButton.style.position = 'absolute';
+            speakTextButton.style.bottom = '50px';
+            speakTextButton.style.left = '10px';
+            speakTextButton.style.zIndex = '999';
+            speakTextButton.addEventListener('click', speakText);
+            document.body.appendChild(speakTextButton);
+        }
+
+        function startSpeechRecognition() {
+            console.log('Starting speech recognition...');
+            recognition.start();
+        }
+
+        function speakText() {
+            console.log('Speaking text:', fetchedText);
+            const synth = window.speechSynthesis;
+            const utterance = new SpeechSynthesisUtterance(fetchedText);
+            synth.speak(utterance);
+        }
+
+        function setSliderVisibility(visible) {
+            const slider = document.getElementById('size-slider');
+            slider.style.display = visible ? 'block' : 'none';
+        }
+
+        function positionButtons(matrix) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(matrix);
+            const canvasBounds = renderer.domElement.getBoundingClientRect();
+
+            const x = (position.x / canvasBounds.width) * window.innerWidth;
+            const y = (position.y / canvasBounds.height) * window.innerHeight;
+
+            startSpeechButton.style.left = `${x}px`;
+            startSpeechButton.style.top = `${y}px`;
+            speakTextButton.style.left = `${x}px`;
+            speakTextButton.style.top = `${y + 40}px`;
         }
     </script>
 </body>
 </html>
-
