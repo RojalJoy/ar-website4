@@ -35,13 +35,21 @@
 
         // Firebase configuration
         const firebaseConfig = {
+
             apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
+
             authDomain: "ar-mock-interview.firebaseapp.com",
+
             projectId: "ar-mock-interview",
+
             storageBucket: "ar-mock-interview.appspot.com",
+
             messagingSenderId: "661111146672",
+
             appId: "1:661111146672:web:ed016077153436b6059375"
-        };
+
+            };
+
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -121,9 +129,6 @@
 
             // Initialize speech recognition
             setupSpeechRecognition();
-
-            // Read text from Firebase
-            readTextFromFirebase('your_text_id_here');
         }
 
         function setupSpeechRecognition() {
@@ -162,42 +167,13 @@
         }
 
         function sendTextToFirebase(text) {
-            db.collection("Questions").add({
-                ReviewText: text,
+            db.collection("AR Mock Interview- voice-01").add({
+                speechResult: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then((docRef) => {
                 console.log("Document written with ID: ", docRef.id);
             }).catch((error) => {
                 console.error("Error adding document: ", error);
-            });
-        }
-
-        function readTextFromFirebase(textId) {
-            db.collection("Questions").doc(textId).get().then((doc) => {
-                if (doc.exists) {
-                    console.log("Document data:", doc.data());
-                    // Display the text in your AR scene
-                    displayTextInAR(doc.data().ReviewText);
-                } else {
-                    console.log("No such document!");
-                }
-            }).catch((error) => {
-                console.log("Error getting document:", error);
-            });
-        }
-
-        function displayTextInAR(text) {
-            const loader = new THREE.FontLoader();
-            loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font) {
-                const textGeometry = new THREE.TextGeometry(text, {
-                    font: font,
-                    size: 0.1,
-                    height: 0.01
-                });
-                const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-                const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-                textMesh.position.set(0, 0, -0.5); // Adjust position as needed
-                scene.add(textMesh);
             });
         }
 
@@ -246,10 +222,24 @@
             position.setFromMatrixPosition(matrix);
 
             increaseButton.position.copy(position);
-            decreaseButton.position.copy(position);
+            increaseButton.position.y += 0.1; // Position the increase button above the model
+            increaseButton.position.x -= 0.1; // Position to the left
 
-            increaseButton.position.y += 0.15;
-            decreaseButton.position.y -= 0.15;
+            decreaseButton.position.copy(position);
+            decreaseButton.position.y += 0.1; // Position the decrease button above the model
+            decreaseButton.position.x += 0.1; // Position to the right
+        }
+
+        function onResizeButtonClick(increase) {
+            if (increase) {
+                currentScale += 0.01;
+            } else {
+                currentScale = Math.max(0.01, currentScale - 0.01);
+            }
+            if (model) {
+                model.scale.set(currentScale, currentScale, currentScale);
+                console.log('Resized model to scale:', currentScale);
+            }
         }
 
         function animate() {
@@ -257,31 +247,28 @@
         }
 
         function render(timestamp, frame) {
+            if (mixer) {
+                mixer.update(timestamp * 0.001); // Update the animation mixer
+            }
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
-
                 if (hitTestSourceRequested === false) {
                     session.requestReferenceSpace('viewer').then(function(referenceSpace) {
                         session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
                             hitTestSource = source;
                         });
                     });
-
                     session.addEventListener('end', function() {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
-
                     hitTestSourceRequested = true;
                 }
-
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
-
                     if (hitTestResults.length) {
                         const hit = hitTestResults[0];
-
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -289,9 +276,6 @@
                     }
                 }
             }
-
-            if (mixer) mixer.update(0.01);
-
             renderer.render(scene, camera);
         }
     </script>
