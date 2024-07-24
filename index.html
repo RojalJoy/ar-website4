@@ -35,21 +35,13 @@
 
         // Firebase configuration
         const firebaseConfig = {
-
             apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
-
             authDomain: "ar-mock-interview.firebaseapp.com",
-
             projectId: "ar-mock-interview",
-
             storageBucket: "ar-mock-interview.appspot.com",
-
             messagingSenderId: "661111146672",
-
             appId: "1:661111146672:web:ed016077153436b6059375"
-
-            };
-
+        };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -61,8 +53,11 @@
         let model = null;
         let increaseButton = null;
         let decreaseButton = null;
+        let startSpeechButton = null;
+        let speakTextButton = null;
         let currentScale = 0.05;
         let recognition;
+        let fetchedText = '';
 
         // Initialize the scene
         init();
@@ -124,11 +119,20 @@
             // Create the resize buttons
             createResizeButtons();
 
+            // Create the start speech recognition button
+            createSpeechButton();
+
+            // Create the speak text button
+            createSpeakTextButton();
+
             // Add a window resize event listener
             window.addEventListener('resize', onWindowResize, false);
 
             // Initialize speech recognition
             setupSpeechRecognition();
+
+            // Randomly select and read text from Firebase
+            randomlySelectTextFromFirebase();
         }
 
         function setupSpeechRecognition() {
@@ -159,21 +163,64 @@
             };
 
             recognition.onend = () => {
-                console.log('Speech recognition service disconnected. Restarting...');
-                recognition.start();
+                console.log('Speech recognition service disconnected.');
             };
-
-            recognition.start();
         }
 
         function sendTextToFirebase(text) {
-            db.collection("AR Mock Interview- voice-01").add({
-                speechResult: text,
+            db.collection("Questions").add({
+                ReviewText: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then((docRef) => {
                 console.log("Document written with ID: ", docRef.id);
             }).catch((error) => {
                 console.error("Error adding document: ", error);
+            });
+        }
+
+        function randomlySelectTextFromFirebase() {
+            db.collection("Questions").get().then((querySnapshot) => {
+                const docs = querySnapshot.docs;
+                if (docs.length > 0) {
+                    const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+                    const textId = randomDoc.id;
+                    console.log("Randomly selected document ID: ", textId);
+                    readTextFromFirebase(textId);
+                } else {
+                    console.log("No documents found in the collection!");
+                }
+            }).catch((error) => {
+                console.log("Error getting documents: ", error);
+            });
+        }
+
+        function readTextFromFirebase(textId) {
+            db.collection("Questions").doc(textId).get().then((doc) => {
+                if (doc.exists) {
+                    console.log("Document data:", doc.data());
+                    fetchedText = doc.data().ReviewText;
+                    // Display the text in your AR scene
+                    displayTextInAR(fetchedText);
+                } else {
+                    console.log("No such document!");
+                }
+            }).catch((error) => {
+                console.log("Error getting document:", error);
+            });
+        }
+
+        function displayTextInAR(text) {
+            const loader = new THREE.FontLoader();
+            loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font) {
+                const textGeometry = new THREE.TextGeometry(text, {
+                    font: font,
+                    size: 0.1,
+                    height: 0.01
+                });
+                const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                textMesh.position.set(0, 0, -0.5); // Adjust position as needed
+                scene.add(textMesh);
             });
         }
 
@@ -191,8 +238,8 @@
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
-                setButtonVisibility(true); // Show resize buttons when model is placed
-                positionResizeButtons(reticle.matrix);
+                setButtonVisibility(true); // Show buttons when model is placed
+                positionButtons(reticle.matrix);
             }
         }
 
@@ -215,31 +262,67 @@
         function setButtonVisibility(visible) {
             increaseButton.visible = visible;
             decreaseButton.visible = visible;
+            startSpeechButton.visible = visible;
+            speakTextButton.visible = visible;
         }
 
-        function positionResizeButtons(matrix) {
+        function positionButtons(matrix) {
+            positionIncreaseButton(matrix);
+            positionDecreaseButton(matrix);
+            positionSpeechButton(matrix);
+            positionSpeakTextButton(matrix);
+        }
+
+        function positionIncreaseButton(matrix) {
             const position = new THREE.Vector3();
             position.setFromMatrixPosition(matrix);
 
             increaseButton.position.copy(position);
-            increaseButton.position.y += 0.1; // Position the increase button above the model
-            increaseButton.position.x -= 0.1; // Position to the left
-
-            decreaseButton.position.copy(position);
-            decreaseButton.position.y += 0.1; // Position the decrease button above the model
-            decreaseButton.position.x += 0.1; // Position to the right
+            increaseButton.position.x += 0.15;
+            increaseButton.position.y -= 0.15;
         }
 
-        function onResizeButtonClick(increase) {
-            if (increase) {
-                currentScale += 0.01;
-            } else {
-                currentScale = Math.max(0.01, currentScale - 0.01);
-            }
-            if (model) {
-                model.scale.set(currentScale, currentScale, currentScale);
-                console.log('Resized model to scale:', currentScale);
-            }
+        function positionDecreaseButton(matrix) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(matrix);
+
+            decreaseButton.position.copy(position);
+            decreaseButton.position.x -= 0.15;
+            decreaseButton.position.y -= 0.15;
+        }
+
+        function createSpeechButton() {
+            const buttonGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.01);
+            const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            startSpeechButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+            startSpeechButton.visible = false; // Initially hide the button
+            startSpeechButton.userData = { isSpeechButton: true };
+            scene.add(startSpeechButton);
+        }
+
+        function positionSpeechButton(matrix) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(matrix);
+
+            startSpeechButton.position.copy(position);
+            startSpeechButton.position.y -= 0.25; // Position below the resize buttons
+        }
+
+        function createSpeakTextButton() {
+            const buttonGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.01);
+            const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+            speakTextButton = new THREE.Mesh(buttonGeometry, buttonMaterial);
+            speakTextButton.visible = false; // Initially hide the button
+            speakTextButton.userData = { isSpeakTextButton: true };
+            scene.add(speakTextButton);
+        }
+
+        function positionSpeakTextButton(matrix) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(matrix);
+
+            speakTextButton.position.copy(position);
+            speakTextButton.position.y -= 0.35; // Position below the speech button
         }
 
         function animate() {
@@ -247,28 +330,31 @@
         }
 
         function render(timestamp, frame) {
-            if (mixer) {
-                mixer.update(timestamp * 0.001); // Update the animation mixer
-            }
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
+
                 if (hitTestSourceRequested === false) {
                     session.requestReferenceSpace('viewer').then(function(referenceSpace) {
                         session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
                             hitTestSource = source;
                         });
                     });
+
                     session.addEventListener('end', function() {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
+
                     hitTestSourceRequested = true;
                 }
+
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
+
                     if (hitTestResults.length) {
                         const hit = hitTestResults[0];
+
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -276,7 +362,49 @@
                     }
                 }
             }
+
+            if (mixer) mixer.update(0.01);
+
             renderer.render(scene, camera);
+        }
+
+        window.addEventListener('click', function(event) {
+            // Get mouse coordinates
+            const mouse = new THREE.Vector2(
+                (event.clientX / window.innerWidth) * 2 - 1,
+                -(event.clientY / window.innerHeight) * 2 + 1
+            );
+
+            // Raycaster for interaction
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects([increaseButton, decreaseButton, startSpeechButton, speakTextButton]);
+
+            if (intersects.length > 0) {
+                const intersectedObject = intersects[0].object;
+                if (intersectedObject.userData.isIncreaseButton) {
+                    console.log('Increase button clicked.');
+                    currentScale += 0.01;
+                    model.scale.set(currentScale, currentScale, currentScale);
+                } else if (intersectedObject.userData.isDecreaseButton) {
+                    console.log('Decrease button clicked.');
+                    currentScale -= 0.01;
+                    model.scale.set(currentScale, currentScale, currentScale);
+                } else if (intersectedObject.userData.isSpeechButton) {
+                    console.log('Start Speech Recognition button clicked.');
+                    recognition.start();
+                } else if (intersectedObject.userData.isSpeakTextButton) {
+                    console.log('Speak Text button clicked.');
+                    speakText(fetchedText);
+                }
+            }
+        });
+
+        function speakText(text) {
+            const speechSynthesis = window.speechSynthesis;
+            const utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
         }
     </script>
 </body>
