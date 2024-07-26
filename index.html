@@ -7,7 +7,6 @@
     <style>
         body {
             margin: 0;
-            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -16,10 +15,14 @@
         }
         #ar-container {
             display: none;
+            width: 80%;
+            height: 80%;
             border: 2px solid black; /* Add border around the AR canvas */
+            position: relative;
         }
-        canvas {
-            display: block;
+        #ar-canvas {
+            width: 80%;
+            height: 80%;
         }
         button {
             padding: 10px 20px;
@@ -42,7 +45,9 @@
 </head>
 <body>
     <button id="start-ar">Start AR</button>
-    <div id="ar-container"></div>
+    <div id="ar-container">
+        <canvas id="ar-canvas"></canvas>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -87,10 +92,9 @@
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
 
             // Create and set up the renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, canvas: document.getElementById('ar-canvas') });
+            renderer.setSize(document.getElementById('ar-container').clientWidth, document.getElementById('ar-container').clientHeight);
             renderer.xr.enabled = true;
-            document.getElementById('ar-container').appendChild(renderer.domElement);
 
             // Add a light source to the scene
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
@@ -190,9 +194,9 @@
 
         function onWindowResize() {
             console.log('Window resized.');
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = document.getElementById('ar-container').clientWidth / document.getElementById('ar-container').clientHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(document.getElementById('ar-container').clientWidth, document.getElementById('ar-container').clientHeight);
         }
 
         function onSelect() {
@@ -234,15 +238,17 @@
 
             increaseButton.position.copy(position);
             increaseButton.position.y += 0.1; // Position the increase button above the model
-            increaseButton.position.x -= 0.1; // Position to the left
+            increaseButton.position.x -= 0.1; // Offset to the left
 
             decreaseButton.position.copy(position);
             decreaseButton.position.y += 0.1; // Position the decrease button above the model
-            decreaseButton.position.x += 0.1; // Position to the right
+            decreaseButton.position.x += 0.1; // Offset to the right
         }
 
-        function onResizeButtonClick(increase) {
-            if (increase) {
+        function adjustModelScale(isIncreasing) {
+            if (!model) return;
+
+            if (isIncreasing) {
                 currentScale += 0.01;
             } else {
                 currentScale -= 0.01;
