@@ -8,9 +8,23 @@
         body {
             margin: 0;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+        #ar-container {
+            display: none;
+            border: 2px solid black; /* Add border around the AR canvas */
         }
         canvas {
             display: block;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
         }
     </style>
     <script type="importmap">
@@ -27,6 +41,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <button id="start-ar">Start AR</button>
+    <div id="ar-container"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -35,21 +51,13 @@
 
         // Firebase configuration
         const firebaseConfig = {
-
             apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
-
             authDomain: "ar-mock-interview.firebaseapp.com",
-
             projectId: "ar-mock-interview",
-
             storageBucket: "ar-mock-interview.appspot.com",
-
             messagingSenderId: "661111146672",
-
             appId: "1:661111146672:web:ed016077153436b6059375"
-
-            };
-
+        };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -64,9 +72,12 @@
         let currentScale = 0.05;
         let recognition;
 
-        // Initialize the scene
-        init();
-        animate();
+        document.getElementById('start-ar').addEventListener('click', () => {
+            document.getElementById('start-ar').style.display = 'none';
+            document.getElementById('ar-container').style.display = 'block';
+            init();
+            animate();
+        });
 
         function init() {
             console.log('Initializing scene...');
@@ -79,7 +90,7 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
+            document.getElementById('ar-container').appendChild(renderer.domElement);
 
             // Add a light source to the scene
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
@@ -234,12 +245,9 @@
             if (increase) {
                 currentScale += 0.01;
             } else {
-                currentScale = Math.max(0.01, currentScale - 0.01);
+                currentScale -= 0.01;
             }
-            if (model) {
-                model.scale.set(currentScale, currentScale, currentScale);
-                console.log('Resized model to scale:', currentScale);
-            }
+            model.scale.set(currentScale, currentScale, currentScale);
         }
 
         function animate() {
@@ -247,35 +255,46 @@
         }
 
         function render(timestamp, frame) {
-            if (mixer) {
-                mixer.update(timestamp * 0.001); // Update the animation mixer
-            }
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
+
                 if (hitTestSourceRequested === false) {
                     session.requestReferenceSpace('viewer').then(function(referenceSpace) {
                         session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
                             hitTestSource = source;
                         });
                     });
+
                     session.addEventListener('end', function() {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
+
                     hitTestSourceRequested = true;
                 }
+
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
+
                     if (hitTestResults.length) {
                         const hit = hitTestResults[0];
+
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+
+                        increaseButton.userData.matrix = reticle.matrix;
+                        decreaseButton.userData.matrix = reticle.matrix;
                     } else {
                         reticle.visible = false;
                     }
                 }
             }
+
+            if (mixer) {
+                mixer.update(renderer.xr.isPresenting ? renderer.xr.getAnimationLoopDelta() : 0.01);
+            }
+
             renderer.render(scene, camera);
         }
     </script>
