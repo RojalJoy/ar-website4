@@ -9,12 +9,10 @@
             margin: 0;
         }
         #ar-container {
-            width: calc(100vw - 10px); /* Adjusted for the border */
-            height: calc(100vh - 10px); /* Adjusted for the border */
+            width: 100vw;
+            height: 100vh;
             position: relative;
             overflow: hidden;
-            border: 5px solid black; /* Added border */
-            box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
         }
         canvas {
             display: block;
@@ -61,6 +59,8 @@
         let model = null;
         let increaseButton = null;
         let decreaseButton = null;
+        let rotateLeftButton = null;
+        let rotateRightButton = null;
         let currentScale = 0.05;
         let recognition;
 
@@ -124,8 +124,8 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            // Create the resize buttons
-            createResizeButtons();
+            // Create the resize and rotate buttons
+            createButtons();
 
             // Add a window resize event listener
             window.addEventListener('resize', onWindowResize, false);
@@ -194,15 +194,17 @@
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
-                setButtonVisibility(true); // Show resize buttons when model is placed
-                positionResizeButtons(reticle.matrix);
+                setButtonVisibility(true); // Show buttons when model is placed
+                positionButtons(reticle.matrix);
             }
         }
 
-        function createResizeButtons() {
+        function createButtons() {
             const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
             const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const rotateLeftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const rotateRightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 
             increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
             increaseButton.visible = false; // Initially hide the button
@@ -213,24 +215,44 @@
             decreaseButton.visible = false; // Initially hide the button
             decreaseButton.userData = { isDecreaseButton: true };
             scene.add(decreaseButton);
+
+            rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
+            rotateLeftButton.visible = false; // Initially hide the button
+            rotateLeftButton.userData = { isRotateLeftButton: true };
+            scene.add(rotateLeftButton);
+
+            rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
+            rotateRightButton.visible = false; // Initially hide the button
+            rotateRightButton.userData = { isRotateRightButton: true };
+            scene.add(rotateRightButton);
         }
 
         function setButtonVisibility(visible) {
             increaseButton.visible = visible;
             decreaseButton.visible = visible;
+            rotateLeftButton.visible = visible;
+            rotateRightButton.visible = visible;
         }
 
-        function positionResizeButtons(matrix) {
+        function positionButtons(matrix) {
             const position = new THREE.Vector3();
             position.setFromMatrixPosition(matrix);
 
             increaseButton.position.copy(position);
             increaseButton.position.y += 0.1; // Position the increase button above the model
-            increaseButton.position.x -= 0.1; // Position to the left
+            increaseButton.position.x -= 0.2; // Position to the far left
 
             decreaseButton.position.copy(position);
             decreaseButton.position.y += 0.1; // Position the decrease button above the model
-            decreaseButton.position.x += 0.1; // Position to the right
+            decreaseButton.position.x += 0.2; // Position to the far right
+
+            rotateLeftButton.position.copy(position);
+            rotateLeftButton.position.y += 0.1; // Position the rotate left button above the model
+            rotateLeftButton.position.x -= 0.1; // Position to the left
+
+            rotateRightButton.position.copy(position);
+            rotateRightButton.position.y += 0.1; // Position the rotate right button above the model
+            rotateRightButton.position.x += 0.1; // Position to the right
         }
 
         function onResizeButtonClick(increase) {
@@ -245,6 +267,14 @@
             }
         }
 
+        function onRotateButtonClick(clockwise) {
+            if (model) {
+                const rotationAmount = clockwise ? -Math.PI / 8 : Math.PI / 8;
+                model.rotation.y += rotationAmount;
+                console.log('Rotated model by:', rotationAmount);
+            }
+        }
+
         function animate() {
             renderer.setAnimationLoop(render);
         }
@@ -254,14 +284,14 @@
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
-                if (!hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then(function(referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
+                if (hitTestSourceRequested === false) {
+                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', function() {
+                    session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -272,7 +302,7 @@
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-                    if (hitTestResults.length > 0) {
+                    if (hitTestResults.length) {
                         const hit = hitTestResults[0];
 
                         reticle.visible = true;
@@ -284,20 +314,24 @@
             }
 
             if (mixer) {
-                mixer.update(renderer.xr.isPresenting ? renderer.xr.getFrame().getDeltaTime() / 1000 : 0);
+                mixer.update(0.01);
             }
 
             renderer.render(scene, camera);
         }
 
-        document.body.addEventListener('click', function(event) {
+        document.addEventListener('click', (event) => {
             const intersects = getIntersects(event.clientX, event.clientY);
             if (intersects.length > 0) {
-                const intersect = intersects[0];
-                if (intersect.object.userData.isIncreaseButton) {
+                const object = intersects[0].object;
+                if (object.userData.isIncreaseButton) {
                     onResizeButtonClick(true);
-                } else if (intersect.object.userData.isDecreaseButton) {
+                } else if (object.userData.isDecreaseButton) {
                     onResizeButtonClick(false);
+                } else if (object.userData.isRotateLeftButton) {
+                    onRotateButtonClick(false);
+                } else if (object.userData.isRotateRightButton) {
+                    onRotateButtonClick(true);
                 }
             }
         });
@@ -305,12 +339,11 @@
         function getIntersects(x, y) {
             const mouse = new THREE.Vector2();
             mouse.x = (x / window.innerWidth) * 2 - 1;
-            mouse.y = - (y / window.innerHeight) * 2 + 1;
+            mouse.y = -(y / window.innerHeight) * 2 + 1;
 
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, camera);
-
-            return raycaster.intersectObjects([increaseButton, decreaseButton]);
+            return raycaster.intersectObjects([increaseButton, decreaseButton, rotateLeftButton, rotateRightButton]);
         }
     </script>
 </body>
