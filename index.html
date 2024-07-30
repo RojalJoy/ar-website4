@@ -63,6 +63,7 @@
         let rotateRightButton = null;
         let currentScale = 0.05;
         let recognition;
+        let initialGreeting = false;
 
         // Initialize the scene
         init();
@@ -132,6 +133,9 @@
 
             // Initialize speech recognition
             setupSpeechRecognition();
+
+            // Start reading documents every 20 seconds
+            setInterval(readRandomDocument, 20000);
         }
 
         function setupSpeechRecognition() {
@@ -182,6 +186,20 @@
             });
         }
 
+        function readRandomDocument() {
+            db.collection("Questions").get().then((querySnapshot) => {
+                const documents = querySnapshot.docs;
+                if (documents.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * documents.length);
+                    const randomDoc = documents[randomIndex];
+                    const reviewText = randomDoc.data().ReviewText;
+                    speakText(reviewText);
+                }
+            }).catch((error) => {
+                console.error("Error reading documents: ", error);
+            });
+        }
+
         function onWindowResize() {
             console.log('Window resized.');
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -198,7 +216,10 @@
                 reticle.visible = false;
                 setButtonVisibility(true); // Show buttons when model is placed
                 positionButtons(reticle.matrix);
-                speakText("Hello, how can I assist you today?");
+                if (!initialGreeting) {
+                    speakText("Hello, how can I assist you today?");
+                    initialGreeting = true;
+                }
             }
         }
 
@@ -230,6 +251,15 @@
             scene.add(rotateRightButton);
         }
 
+        function positionButtons(matrix) {
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(matrix);
+            increaseButton.position.copy(position).add(new THREE.Vector3(0.15, 0, 0));
+            decreaseButton.position.copy(position).add(new THREE.Vector3(-0.15, 0, 0));
+            rotateLeftButton.position.copy(position).add(new THREE.Vector3(0, 0, 0.15));
+            rotateRightButton.position.copy(position).add(new THREE.Vector3(0, 0, -0.15));
+        }
+
         function setButtonVisibility(visible) {
             increaseButton.visible = visible;
             decreaseButton.visible = visible;
@@ -237,48 +267,31 @@
             rotateRightButton.visible = visible;
         }
 
-        function positionButtons(matrix) {
-            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
-            increaseButton.position.copy(position);
-            increaseButton.position.y += 0.1; // Position the increase button above the model
-            increaseButton.position.x -= 0.2; // Position to the far left
-
-            decreaseButton.position.copy(position);
-            decreaseButton.position.y += 0.1; // Position the decrease button above the model
-            decreaseButton.position.x += 0.2; // Position to the far right
-
-            rotateLeftButton.position.copy(position);
-            rotateLeftButton.position.y += 0.1; // Position the rotate left button above the model
-            rotateLeftButton.position.x -= 0.1; // Position to the left
-
-            rotateRightButton.position.copy(position);
-            rotateRightButton.position.y += 0.1; // Position the rotate right button above the model
-            rotateRightButton.position.x += 0.1; // Position to the right
-        }
-
-        function onResizeButtonClick(increase) {
-            if (increase) {
-                currentScale += 0.01;
-            } else {
-                currentScale = Math.max(0.01, currentScale - 0.01);
+        function checkButtonInteraction() {
+            if (increaseButton.visible && decreaseButton.visible && rotateLeftButton.visible && rotateRightButton.visible) {
+                const buttons = [increaseButton, decreaseButton, rotateLeftButton, rotateRightButton];
+                const tempMatrix = new THREE.Matrix4();
+                for (const button of buttons) {
+                    tempMatrix.identity().extractRotation(button.matrixWorld);
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+                    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+                    const intersects = raycaster.intersectObject(button);
+                    if (intersects.length > 0) {
+                        if (button.userData.isIncreaseButton) {
+                            currentScale += 0.01;
+                            model.scale.set(currentScale, currentScale, currentScale);
+                        } else if (button.userData.isDecreaseButton) {
+                            currentScale -= 0.01;
+                            model.scale.set(currentScale, currentScale, currentScale);
+                        } else if (button.userData.isRotateLeftButton) {
+                            model.rotation.y += 0.1;
+                        } else if (button.userData.isRotateRightButton) {
+                            model.rotation.y -= 0.1;
+                        }
+                    }
+                }
             }
-            if (model) {
-                model.scale.set(currentScale, currentScale, currentScale);
-                console.log('Resized model to scale:', currentScale);
-            }
-        }
-
-        function onRotateButtonClick(clockwise) {
-            if (model) {
-                const rotationAmount = clockwise ? -Math.PI / 8 : Math.PI / 8;
-                model.rotation.y += rotationAmount;
-                console.log('Rotated model by:', rotationAmount);
-            }
-        }
-
-        function speakText(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            window.speechSynthesis.speak(utterance);
         }
 
         function animate() {
@@ -291,13 +304,13 @@
                 const session = renderer.xr.getSession();
 
                 if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
-                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                    session.requestReferenceSpace('viewer').then(function (referenceSpace) {
+                        session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', () => {
+                    session.addEventListener('end', function () {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -320,40 +333,17 @@
             }
 
             if (mixer) {
-                mixer.update(0.01);
+                const delta = clock.getDelta();
+                mixer.update(delta);
             }
 
+            checkButtonInteraction();
             renderer.render(scene, camera);
         }
 
-        document.addEventListener('click', (event) => {
-            const intersects = getIntersects(event.clientX, event.clientY);
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-                if (object.userData.isIncreaseButton) {
-                    onResizeButtonClick(true);
-                    speakText('Increasing size');
-                } else if (object.userData.isDecreaseButton) {
-                    onResizeButtonClick(false);
-                    speakText('Decreasing size');
-                } else if (object.userData.isRotateLeftButton) {
-                    onRotateButtonClick(false);
-                    speakText('Rotating left');
-                } else if (object.userData.isRotateRightButton) {
-                    onRotateButtonClick(true);
-                    speakText('Rotating right');
-                }
-            }
-        });
-
-        function getIntersects(x, y) {
-            const mouse = new THREE.Vector2();
-            mouse.x = (x / window.innerWidth) * 2 - 1;
-            mouse.y = -(y / window.innerHeight) * 2 + 1;
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(mouse, camera);
-            return raycaster.intersectObjects([increaseButton, decreaseButton, rotateLeftButton, rotateRightButton]);
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            speechSynthesis.speak(utterance);
         }
     </script>
 </body>
