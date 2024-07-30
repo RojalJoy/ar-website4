@@ -172,7 +172,7 @@
         }
 
         function sendTextToFirebase(text) {
-            db.collection("AR Mock Interview- voice-01").add({
+            db.collection("Questions").add({
                 speechResult: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then((docRef) => {
