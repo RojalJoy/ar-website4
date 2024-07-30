@@ -7,6 +7,11 @@
     <style>
         body {
             margin: 0;
+        }
+        #ar-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
             overflow: hidden;
         }
         canvas {
@@ -27,6 +32,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <div id="ar-container"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -35,21 +41,13 @@
 
         // Firebase configuration
         const firebaseConfig = {
-
             apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
-
             authDomain: "ar-mock-interview.firebaseapp.com",
-
             projectId: "ar-mock-interview",
-
             storageBucket: "ar-mock-interview.appspot.com",
-
             messagingSenderId: "661111146672",
-
             appId: "1:661111146672:web:ed016077153436b6059375"
-
-            };
-
+        };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -79,15 +77,18 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
-            document.body.appendChild(renderer.domElement);
+
+            // Add the renderer to the container
+            const arContainer = document.getElementById('ar-container');
+            arContainer.appendChild(renderer.domElement);
 
             // Add a light source to the scene
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             light.position.set(0.5, 1, 0.25);
             scene.add(light);
 
-            // Add the AR button to the scene
-            document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+            // Add the AR button to the container
+            arContainer.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
             // Load the GLTF model
             const loader = new GLTFLoader();
@@ -247,28 +248,31 @@
         }
 
         function render(timestamp, frame) {
-            if (mixer) {
-                mixer.update(timestamp * 0.001); // Update the animation mixer
-            }
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
+
                 if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then(function(referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
+                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
-                    session.addEventListener('end', function() {
+
+                    session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
+
                     hitTestSourceRequested = true;
                 }
+
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
+
                     if (hitTestResults.length) {
                         const hit = hitTestResults[0];
+
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -276,6 +280,11 @@
                     }
                 }
             }
+
+            if (mixer) {
+                mixer.update(0.01);
+            }
+
             renderer.render(scene, camera);
         }
     </script>
