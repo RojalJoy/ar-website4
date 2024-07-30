@@ -9,10 +9,12 @@
             margin: 0;
         }
         #ar-container {
-            width: 100vw;
-            height: 100vh;
+            width: calc(100vw - 10px); /* Adjusted for the border */
+            height: calc(100vh - 10px); /* Adjusted for the border */
             position: relative;
             overflow: hidden;
+            border: 5px solid black; /* Added border */
+            box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
         }
         canvas {
             display: block;
@@ -252,14 +254,14 @@
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
-                if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
-                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                if (!hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then(function(referenceSpace) {
+                        session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', () => {
+                    session.addEventListener('end', function() {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -270,7 +272,7 @@
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-                    if (hitTestResults.length) {
+                    if (hitTestResults.length > 0) {
                         const hit = hitTestResults[0];
 
                         reticle.visible = true;
@@ -282,10 +284,33 @@
             }
 
             if (mixer) {
-                mixer.update(0.01);
+                mixer.update(renderer.xr.isPresenting ? renderer.xr.getFrame().getDeltaTime() / 1000 : 0);
             }
 
             renderer.render(scene, camera);
+        }
+
+        document.body.addEventListener('click', function(event) {
+            const intersects = getIntersects(event.clientX, event.clientY);
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                if (intersect.object.userData.isIncreaseButton) {
+                    onResizeButtonClick(true);
+                } else if (intersect.object.userData.isDecreaseButton) {
+                    onResizeButtonClick(false);
+                }
+            }
+        });
+
+        function getIntersects(x, y) {
+            const mouse = new THREE.Vector2();
+            mouse.x = (x / window.innerWidth) * 2 - 1;
+            mouse.y = - (y / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+
+            return raycaster.intersectObjects([increaseButton, decreaseButton]);
         }
     </script>
 </body>
