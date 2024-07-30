@@ -150,6 +150,8 @@
                 console.log('Speech result:', speechResult);
                 // Send the text to the Firebase
                 sendTextToFirebase(speechResult);
+                // Make the model speak
+                speakText(speechResult);
             };
 
             recognition.onspeechend = () => {
@@ -196,6 +198,7 @@
                 reticle.visible = false;
                 setButtonVisibility(true); // Show buttons when model is placed
                 positionButtons(reticle.matrix);
+                speakText("Hello, how can I assist you today?");
             }
         }
 
@@ -235,9 +238,7 @@
         }
 
         function positionButtons(matrix) {
-            const position = new THREE.Vector3();
-            position.setFromMatrixPosition(matrix);
-
+            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
             increaseButton.position.copy(position);
             increaseButton.position.y += 0.1; // Position the increase button above the model
             increaseButton.position.x -= 0.2; // Position to the far left
@@ -273,6 +274,11 @@
                 model.rotation.y += rotationAmount;
                 console.log('Rotated model by:', rotationAmount);
             }
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
         }
 
         function animate() {
@@ -326,12 +332,16 @@
                 const object = intersects[0].object;
                 if (object.userData.isIncreaseButton) {
                     onResizeButtonClick(true);
+                    speakText('Increasing size');
                 } else if (object.userData.isDecreaseButton) {
                     onResizeButtonClick(false);
+                    speakText('Decreasing size');
                 } else if (object.userData.isRotateLeftButton) {
                     onRotateButtonClick(false);
+                    speakText('Rotating left');
                 } else if (object.userData.isRotateRightButton) {
                     onRotateButtonClick(true);
+                    speakText('Rotating right');
                 }
             }
         });
