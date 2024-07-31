@@ -41,13 +41,21 @@
 
         // Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
-            authDomain: "ar-mock-interview.firebaseapp.com",
-            projectId: "ar-mock-interview",
-            storageBucket: "ar-mock-interview.appspot.com",
-            messagingSenderId: "661111146672",
-            appId: "1:661111146672:web:ed016077153436b6059375"
-        };
+
+apiKey: "AIzaSyCpQIMbp-FGJbouVWiK-GWvpKWwSjz3SAM",
+
+authDomain: "ar-ai-82769.firebaseapp.com",
+
+projectId: "ar-ai-82769",
+
+storageBucket: "ar-ai-82769.appspot.com",
+
+messagingSenderId: "425384926025",
+
+appId: "1:425384926025:web:aec4587abc721f0d311898"
+
+};
+
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -187,7 +195,7 @@
         }
 
         function readRandomDocument() {
-            db.collection("Questions").get().then((querySnapshot) => {
+            db.collection("Deep").get().then((querySnapshot) => {
                 const documents = querySnapshot.docs;
                 if (documents.length > 0) {
                     const randomIndex = Math.floor(Math.random() * documents.length);
