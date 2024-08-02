@@ -7,15 +7,54 @@
     <style>
         body {
             margin: 0;
+            font-family: Arial, sans-serif;
         }
         #ar-container {
             width: 100vw;
             height: 100vh;
             position: relative;
             overflow: hidden;
+            background: rgba(0, 0, 0, 0.5); /* Background overlay */
         }
         canvas {
             display: block;
+        }
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            z-index: 10;
+            font-size: 1.5em;
+        }
+        .button {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+            z-index: 10;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .ar-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
         }
     </style>
     <script type="importmap">
@@ -32,7 +71,14 @@
     <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <div id="ar-container"></div>
+    <div id="ar-container">
+        <div class="header">AR Experience</div>
+        <button class="button" id="increase-btn">Increase Size</button>
+        <button class="button" id="decrease-btn" style="bottom: 60px;">Decrease Size</button>
+        <button class="button" id="rotate-left-btn" style="bottom: 110px;">Rotate Left</button>
+        <button class="button" id="rotate-right-btn" style="bottom: 160px;">Rotate Right</button>
+        <div class="ar-button"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -57,10 +103,6 @@
         let hitTestSource = null;
         let hitTestSourceRequested = false;
         let model = null;
-        let increaseButton = null;
-        let decreaseButton = null;
-        let rotateLeftButton = null;
-        let rotateRightButton = null;
         let currentScale = 0.05;
         let recognition;
         let initialGreeting = false;
@@ -91,7 +133,8 @@
             scene.add(light);
 
             // Add the AR button to the container
-            arContainer.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+            const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
+            document.querySelector('.ar-button').appendChild(arButton);
 
             // Load the GLTF model
             const loader = new GLTFLoader();
@@ -125,9 +168,6 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            // Create the resize and rotate buttons
-            createButtons();
-
             // Add a window resize event listener
             window.addEventListener('resize', onWindowResize, false);
 
@@ -136,6 +176,12 @@
 
             // Start reading documents every 20 seconds
             setInterval(readRandomDocument, 20000);
+
+            // Add button event listeners
+            document.getElementById('increase-btn').addEventListener('click', () => adjustModelScale(0.01));
+            document.getElementById('decrease-btn').addEventListener('click', () => adjustModelScale(-0.01));
+            document.getElementById('rotate-left-btn').addEventListener('click', () => rotateModel(0.1));
+            document.getElementById('rotate-right-btn').addEventListener('click', () => rotateModel(-0.1));
         }
 
         function setupSpeechRecognition() {
@@ -186,116 +232,6 @@
             });
         }
 
-        function readRandomDocument() {
-            db.collection("Deep").get().then((querySnapshot) => {
-                const documents = querySnapshot.docs;
-                if (documents.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * documents.length);
-                    const randomDoc = documents[randomIndex];
-                    const descriptionText = randomDoc.data().DESCRIPTION;
-                    speakText(descriptionText);
-                }
-            }).catch((error) => {
-                console.error("Error reading documents: ", error);
-            });
-        }
-
-        function onWindowResize() {
-            console.log('Window resized.');
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function onSelect() {
-            console.log('Controller select event.');
-            if (reticle.visible && model) {
-                console.log('Placing model at reticle position.');
-                model.position.setFromMatrixPosition(reticle.matrix);
-                model.visible = true;
-                reticle.visible = false;
-                setButtonVisibility(true); // Show buttons when model is placed
-                positionButtons(reticle.matrix);
-                if (!initialGreeting) {
-                    speakText("Hello, how can I assist you today?");
-                    initialGreeting = true;
-                }
-            }
-        }
-
-        function createButtons() {
-            const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
-            const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const rotateLeftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-            const rotateRightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-
-            increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
-            increaseButton.visible = false; // Initially hide the button
-            increaseButton.userData = { isIncreaseButton: true };
-            scene.add(increaseButton);
-
-            decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
-            decreaseButton.visible = false; // Initially hide the button
-            decreaseButton.userData = { isDecreaseButton: true };
-            scene.add(decreaseButton);
-
-            rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
-            rotateLeftButton.visible = false; // Initially hide the button
-            rotateLeftButton.userData = { isRotateLeftButton: true };
-            scene.add(rotateLeftButton);
-
-            rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
-            rotateRightButton.visible = false; // Initially hide the button
-            rotateRightButton.userData = { isRotateRightButton: true };
-            scene.add(rotateRightButton);
-
-            const buttonController = renderer.xr.getController(1);
-            buttonController.addEventListener('select', onButtonSelect);
-            scene.add(buttonController);
-        }
-
-        function positionButtons(matrix) {
-            const distance = 0.2;
-            const positions = [
-                { button: increaseButton, x: -distance, z: -distance },
-                { button: decreaseButton, x: distance, z: -distance },
-                { button: rotateLeftButton, x: -distance, z: distance },
-                { button: rotateRightButton, x: distance, z: distance }
-            ];
-
-            positions.forEach(({ button, x, z }) => {
-                button.position.setFromMatrixPosition(matrix);
-                button.position.x += x;
-                button.position.z += z;
-                button.visible = true; // Make the button visible
-            });
-        }
-
-        function setButtonVisibility(visible) {
-            increaseButton.visible = visible;
-            decreaseButton.visible = visible;
-            rotateLeftButton.visible = visible;
-            rotateRightButton.visible = visible;
-        }
-
-        function onButtonSelect(event) {
-            const selectedObject = event.target;
-            const objectData = selectedObject.userData;
-
-            if (objectData.isIncreaseButton) {
-                currentScale += 0.01;
-                model.scale.set(currentScale, currentScale, currentScale);
-            } else if (objectData.isDecreaseButton) {
-                currentScale -= 0.01;
-                model.scale.set(currentScale, currentScale, currentScale);
-            } else if (objectData.isRotateLeftButton) {
-                model.rotation.y += 0.1;
-            } else if (objectData.isRotateRightButton) {
-                model.rotation.y -= 0.1;
-            }
-        }
-
         function speakText(text) {
             const synth = window.speechSynthesis;
             const utterance = new SpeechSynthesisUtterance(text);
@@ -303,23 +239,42 @@
             synth.speak(utterance);
         }
 
+        function onSelect() {
+            if (reticle.visible) {
+                model.position.setFromMatrixPosition(reticle.matrix);
+                model.visible = true;
+                if (!initialGreeting) {
+                    speakText("Hello! I'm your AR assistant. Ask me anything.");
+                    initialGreeting = true;
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function animate() {
             renderer.setAnimationLoop(render);
         }
 
         function render(timestamp, frame) {
+            if (mixer) mixer.update(renderer.xr.isPresenting ? 0.01 : 0);
+
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
                 if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then(function (referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
+                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', function () {
+                    session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -329,11 +284,8 @@
 
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
-
                     if (hitTestResults.length) {
                         const hit = hitTestResults[0];
-                        const referenceSpace = renderer.xr.getReferenceSpace();
-
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -342,12 +294,36 @@
                 }
             }
 
-            if (mixer) {
-                const delta = clock.getDelta();
-                mixer.update(delta);
-            }
-
             renderer.render(scene, camera);
+        }
+
+        function adjustModelScale(amount) {
+            if (model) {
+                currentScale += amount;
+                model.scale.set(currentScale, currentScale, currentScale);
+            }
+        }
+
+        function rotateModel(amount) {
+            if (model) {
+                model.rotation.y += amount;
+            }
+        }
+
+        function readRandomDocument() {
+            db.collection("Questions").orderBy("timestamp").limit(10).get().then((querySnapshot) => {
+                const documents = querySnapshot.docs;
+                if (documents.length > 0) {
+                    const randomDoc = documents[Math.floor(Math.random() * documents.length)];
+                    const data = randomDoc.data();
+                    console.log('Reading document:', data.speechResult);
+                    speakText(data.speechResult);
+                } else {
+                    console.log('No documents found.');
+                }
+            }).catch((error) => {
+                console.error("Error getting documents: ", error);
+            });
         }
     </script>
 </body>
