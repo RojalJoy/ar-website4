@@ -73,10 +73,6 @@
 <body>
     <div id="ar-container">
         <div class="header">AR Experience</div>
-        <button class="button" id="increase-btn">Increase Size</button>
-        <button class="button" id="decrease-btn" style="bottom: 60px;">Decrease Size</button>
-        <button class="button" id="rotate-left-btn" style="bottom: 110px;">Rotate Left</button>
-        <button class="button" id="rotate-right-btn" style="bottom: 160px;">Rotate Right</button>
         <div class="ar-button"></div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -134,6 +130,10 @@
 
             // Add the AR button to the container
             const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
+            arButton.addEventListener('click', () => {
+                document.querySelector('.header').style.display = 'none';
+                showARButtons();
+            });
             document.querySelector('.ar-button').appendChild(arButton);
 
             // Load the GLTF model
@@ -176,12 +176,6 @@
 
             // Start reading documents every 20 seconds
             setInterval(readRandomDocument, 20000);
-
-            // Add button event listeners
-            document.getElementById('increase-btn').addEventListener('click', () => adjustModelScale(0.01));
-            document.getElementById('decrease-btn').addEventListener('click', () => adjustModelScale(-0.01));
-            document.getElementById('rotate-left-btn').addEventListener('click', () => rotateModel(0.1));
-            document.getElementById('rotate-right-btn').addEventListener('click', () => rotateModel(-0.1));
         }
 
         function setupSpeechRecognition() {
@@ -295,6 +289,31 @@
             }
 
             renderer.render(scene, camera);
+        }
+
+        function showARButtons() {
+            const arContainer = document.getElementById('ar-container');
+
+            const scaleUpButton = document.createElement('button');
+            scaleUpButton.className = 'button';
+            scaleUpButton.innerText = 'Scale Up';
+            scaleUpButton.style.bottom = '70px';
+            scaleUpButton.onclick = () => adjustModelScale(0.05);
+            arContainer.appendChild(scaleUpButton);
+
+            const scaleDownButton = document.createElement('button');
+            scaleDownButton.className = 'button';
+            scaleDownButton.innerText = 'Scale Down';
+            scaleDownButton.style.bottom = '40px';
+            scaleDownButton.onclick = () => adjustModelScale(-0.05);
+            arContainer.appendChild(scaleDownButton);
+
+            const rotateButton = document.createElement('button');
+            rotateButton.className = 'button';
+            rotateButton.innerText = 'Rotate';
+            rotateButton.style.bottom = '10px';
+            rotateButton.onclick = () => rotateModel(Math.PI / 4);
+            arContainer.appendChild(rotateButton);
         }
 
         function adjustModelScale(amount) {
