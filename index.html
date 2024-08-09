@@ -307,33 +307,31 @@
         }
 
         function animate() {
-            renderer.setAnimationLoop(function() {
-                if (model && mixer) {
-                    mixer.update(renderer.xr.getFrame().delta);
-                }
+    renderer.setAnimationLoop(function (timestamp, frame) {
+        if (model && mixer) {
+            mixer.update(0.01); // Update the animation mixer
+        }
 
-                if (reticle.visible) {
-                    reticle.visible = false;
-                    const session = renderer.xr.getSession();
-                    if (session) {
-                        const referenceSpace = renderer.xr.getReferenceSpace();
-                        session.requestAnimationFrame((time, frame) => {
-                            const viewerPose = frame.getViewerPose(referenceSpace);
-                            if (viewerPose) {
-                                const hitTestResults = frame.getHitTestResults(hitTestSource);
-                                if (hitTestResults.length > 0) {
-                                    const hit = hitTestResults[0];
-                                    reticle.visible = true;
-                                    reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-                                }
-                            }
-                        });
+        const session = renderer.xr.getSession();
+        if (session) {
+            const referenceSpace = renderer.xr.getReferenceSpace();
+            session.requestAnimationFrame((time, frame) => {
+                const pose = frame.getViewerPose(referenceSpace);
+                if (pose) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     }
                 }
-
-                renderer.render(scene, camera);
             });
         }
+
+        renderer.render(scene, camera);
+    });
+}
+
 
         function speakText(text) {
             const utterance = new SpeechSynthesisUtterance(text);
