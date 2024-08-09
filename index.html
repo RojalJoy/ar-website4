@@ -3,16 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Scene with Firebase and Speech Recognition</title>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
-    <script src="https://threejs.org/build/three.js"></script>
-    <script src="https://threejs.org/examples/jsm/webxr/ARButton.js"></script>
-    <script src="https://threejs.org/examples/jsm/loaders/GLTFLoader.js"></script>
+    <title>Simple AR Example</title>
+    <style>
+        body {
+            margin: 0;
+        }
+        #ar-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+                "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js",
+                "three/examples/jsm/webxr/ARButton.js": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js"
+            }
+        }
+    </script>
+    <!-- Add Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <div id="ar-container"></div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
@@ -20,12 +41,12 @@
 
         // Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyCpQIMbp-FGJbouVWiK-GWvpKWwSjz3SAM",
-            authDomain: "ar-ai-82769.firebaseapp.com",
-            projectId: "ar-ai-82769",
-            storageBucket: "ar-ai-82769.appspot.com",
-            messagingSenderId: "425384926025",
-            appId: "1:425384926025:web:aec4587abc721f0d311898"
+            apiKey: "AIzaSyBQmkc53-rryRQwUlriL78ql-NheP1CNMs",
+            authDomain: "ar-mock-interview.firebaseapp.com",
+            projectId: "ar-mock-interview",
+            storageBucket: "ar-mock-interview.appspot.com",
+            messagingSenderId: "661111146672",
+            appId: "1:661111146672:web:ed016077153436b6059375"
         };
 
         // Initialize Firebase
@@ -42,7 +63,6 @@
         let rotateRightButton = null;
         let currentScale = 0.05;
         let recognition;
-        let initialGreeting = false;
 
         // Initialize the scene
         init();
@@ -72,36 +92,10 @@
             // Add the AR button to the container
             arContainer.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-            // Preload the GLTF model
-            preloadModel();
-
-            // Set up the AR controller
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
-
-            // Create the reticle for hit testing
-            const geometry = new THREE.RingGeometry(0.1, 0.11, 32).rotateX(-Math.PI / 2);
-            const material = new THREE.MeshBasicMaterial();
-            reticle = new THREE.Mesh(geometry, material);
-            reticle.matrixAutoUpdate = false;
-            reticle.visible = false;
-            scene.add(reticle);
-
-            // Create the resize and rotate buttons
-            createButtons();
-
-            // Add a window resize event listener
-            window.addEventListener('resize', onWindowResize, false);
-
-            // Initialize speech recognition, but don't start until the model is visible
-            setupSpeechRecognition();
-        }
-
-        function preloadModel() {
+            // Load the GLTF model
             const loader = new GLTFLoader();
             loader.load('scene.gltf', function(gltf) {
-                console.log('GLTF model preloaded.');
+                console.log('GLTF model loaded.');
                 model = gltf.scene;
                 model.scale.set(currentScale, currentScale, currentScale);
                 model.visible = false; // Initially hide the model
@@ -116,24 +110,52 @@
             }, undefined, function(error) {
                 console.error('Error loading GLTF model:', error);
             });
+
+            // Set up the AR controller
+            controller = renderer.xr.getController(0);
+            controller.addEventListener('select', onSelect);
+            scene.add(controller);
+
+            // Create the reticle for hit testing
+            const geometry = new THREE.RingGeometry(0.1, 0.11, 32).rotateX(- Math.PI / 2);
+            const material = new THREE.MeshBasicMaterial();
+            reticle = new THREE.Mesh(geometry, material);
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
+
+            // Create the resize and rotate buttons
+            createButtons();
+
+            // Add a window resize event listener
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Initialize speech recognition
+            setupSpeechRecognition();
         }
 
         function setupSpeechRecognition() {
+            console.log('Setting up speech recognition...');
             recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             recognition.lang = 'en-US';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
+            recognition.onstart = () => {
+                console.log('Speech recognition started.');
+            };
+
             recognition.onresult = (event) => {
                 const speechResult = event.results[0][0].transcript;
                 console.log('Speech result:', speechResult);
-                // Send the text to Firebase
+                // Send the text to the Firebase
                 sendTextToFirebase(speechResult);
                 // Make the model speak
                 speakText(speechResult);
             };
 
             recognition.onspeechend = () => {
+                console.log('Speech ended.');
                 recognition.stop();
             };
 
@@ -142,8 +164,11 @@
             };
 
             recognition.onend = () => {
+                console.log('Speech recognition service disconnected. Restarting...');
                 recognition.start();
             };
+
+            recognition.start();
         }
 
         function sendTextToFirebase(text) {
@@ -158,23 +183,22 @@
         }
 
         function onWindowResize() {
+            console.log('Window resized.');
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
         function onSelect() {
+            console.log('Controller select event.');
             if (reticle.visible && model) {
+                console.log('Placing model at reticle position.');
                 model.position.setFromMatrixPosition(reticle.matrix);
                 model.visible = true;
                 reticle.visible = false;
-                setButtonVisibility(true); // Show buttons when the model is placed
+                setButtonVisibility(true); // Show buttons when model is placed
                 positionButtons(reticle.matrix);
-                if (!initialGreeting) {
-                    speakText("Hello, how can I assist you today?");
-                    initialGreeting = true;
-                    recognition.start(); // Start speech recognition after the model is placed
-                }
+                speakText("Hello, how can I assist you today?");
             }
         }
 
@@ -206,18 +230,6 @@
             scene.add(rotateRightButton);
         }
 
-        function positionButtons(matrix) {
-            increaseButton.position.setFromMatrixPosition(matrix);
-            decreaseButton.position.setFromMatrixPosition(matrix);
-            rotateLeftButton.position.setFromMatrixPosition(matrix);
-            rotateRightButton.position.setFromMatrixPosition(matrix);
-
-            increaseButton.position.y += 0.15;
-            decreaseButton.position.y -= 0.15;
-            rotateLeftButton.position.x -= 0.15;
-            rotateRightButton.position.x += 0.15;
-        }
-
         function setButtonVisibility(visible) {
             increaseButton.visible = visible;
             decreaseButton.visible = visible;
@@ -225,9 +237,52 @@
             rotateRightButton.visible = visible;
         }
 
+        function positionButtons(matrix) {
+            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+            increaseButton.position.copy(position);
+            increaseButton.position.y += 0.1; // Position the increase button above the model
+            increaseButton.position.x -= 0.2; // Position to the far left
+
+            decreaseButton.position.copy(position);
+            decreaseButton.position.y += 0.1; // Position the decrease button above the model
+            decreaseButton.position.x += 0.2; // Position to the far right
+
+            rotateLeftButton.position.copy(position);
+            rotateLeftButton.position.y += 0.1; // Position the rotate left button above the model
+            rotateLeftButton.position.x -= 0.1; // Position to the left
+
+            rotateRightButton.position.copy(position);
+            rotateRightButton.position.y += 0.1; // Position the rotate right button above the model
+            rotateRightButton.position.x += 0.1; // Position to the right
+        }
+
+        function onResizeButtonClick(increase) {
+            if (increase) {
+                currentScale += 0.01;
+            } else {
+                currentScale = Math.max(0.01, currentScale - 0.01);
+            }
+            if (model) {
+                model.scale.set(currentScale, currentScale, currentScale);
+                console.log('Resized model to scale:', currentScale);
+            }
+        }
+
+        function onRotateButtonClick(clockwise) {
+            if (model) {
+                const rotationAmount = clockwise ? -Math.PI / 8 : Math.PI / 8;
+                model.rotation.y += rotationAmount;
+                console.log('Rotated model by:', rotationAmount);
+            }
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
+        }
+
         function animate() {
             renderer.setAnimationLoop(render);
-            if (mixer) mixer.update(0.01);
         }
 
         function render(timestamp, frame) {
@@ -252,8 +307,10 @@
 
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    if (hitTestResults.length > 0) {
+
+                    if (hitTestResults.length) {
                         const hit = hitTestResults[0];
+
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -262,27 +319,42 @@
                 }
             }
 
+            if (mixer) {
+                mixer.update(0.01);
+            }
+
             renderer.render(scene, camera);
         }
 
-        function speakText(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            window.speechSynthesis.speak(utterance);
+        document.addEventListener('click', (event) => {
+            const intersects = getIntersects(event.clientX, event.clientY);
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if (object.userData.isIncreaseButton) {
+                    onResizeButtonClick(true);
+                    speakText('Increasing size');
+                } else if (object.userData.isDecreaseButton) {
+                    onResizeButtonClick(false);
+                    speakText('Decreasing size');
+                } else if (object.userData.isRotateLeftButton) {
+                    onRotateButtonClick(false);
+                    speakText('Rotating left');
+                } else if (object.userData.isRotateRightButton) {
+                    onRotateButtonClick(true);
+                    speakText('Rotating right');
+                }
+            }
+        });
+
+        function getIntersects(x, y) {
+            const mouse = new THREE.Vector2();
+            mouse.x = (x / window.innerWidth) * 2 - 1;
+            mouse.y = -(y / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            return raycaster.intersectObjects([increaseButton, decreaseButton, rotateLeftButton, rotateRightButton]);
         }
     </script>
-
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-        #ar-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
 </body>
 </html>
