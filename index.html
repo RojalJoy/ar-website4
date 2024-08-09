@@ -3,42 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple AR Example</title>
-    <style>
-        body {
-            margin: 0;
-        }
-        #ar-container {
-            width: 100vw;
-            height: 100vh;
-            position: relative;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-        }
-    </style>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
-                "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/GLTFLoader.js",
-                "three/examples/jsm/webxr/ARButton.js": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js"
-            }
-        }
-    </script>
-    <!-- Add Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.8.1/firebase-firestore-compat.js"></script>
+    <title>AR Scene with Firebase and Speech Recognition</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
+    <script src="https://threejs.org/build/three.js"></script>
+    <script src="https://threejs.org/examples/jsm/webxr/ARButton.js"></script>
+    <script src="https://threejs.org/examples/jsm/loaders/GLTFLoader.js"></script>
 </head>
 <body>
     <div id="ar-container"></div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
         import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-    
+
         // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCpQIMbp-FGJbouVWiK-GWvpKWwSjz3SAM",
@@ -48,11 +27,11 @@
             messagingSenderId: "425384926025",
             appId: "1:425384926025:web:aec4587abc721f0d311898"
         };
-    
+
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-    
+
         let camera, scene, renderer, mixer, controller, reticle;
         let hitTestSource = null;
         let hitTestSourceRequested = false;
@@ -64,43 +43,43 @@
         let currentScale = 0.05;
         let recognition;
         let initialGreeting = false;
-    
+
         // Initialize the scene
         init();
         animate();
-    
+
         function init() {
             console.log('Initializing scene...');
-    
+
             // Create a new scene
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
-    
+
             // Create and set up the renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
-    
+
             // Add the renderer to the container
             const arContainer = document.getElementById('ar-container');
             arContainer.appendChild(renderer.domElement);
-    
+
             // Add a light source to the scene
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             light.position.set(0.5, 1, 0.25);
             scene.add(light);
-    
+
             // Add the AR button to the container
             arContainer.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-    
+
             // Preload the GLTF model
             preloadModel();
-    
+
             // Set up the AR controller
             controller = renderer.xr.getController(0);
             controller.addEventListener('select', onSelect);
             scene.add(controller);
-    
+
             // Create the reticle for hit testing
             const geometry = new THREE.RingGeometry(0.1, 0.11, 32).rotateX(-Math.PI / 2);
             const material = new THREE.MeshBasicMaterial();
@@ -108,17 +87,17 @@
             reticle.matrixAutoUpdate = false;
             reticle.visible = false;
             scene.add(reticle);
-    
+
             // Create the resize and rotate buttons
             createButtons();
-    
+
             // Add a window resize event listener
             window.addEventListener('resize', onWindowResize, false);
-    
+
             // Initialize speech recognition, but don't start until the model is visible
             setupSpeechRecognition();
         }
-    
+
         function preloadModel() {
             const loader = new GLTFLoader();
             loader.load('scene.gltf', function(gltf) {
@@ -127,7 +106,7 @@
                 model.scale.set(currentScale, currentScale, currentScale);
                 model.visible = false; // Initially hide the model
                 scene.add(model);
-    
+
                 // Set up the animation mixer
                 mixer = new THREE.AnimationMixer(model);
                 const clips = gltf.animations;
@@ -138,13 +117,13 @@
                 console.error('Error loading GLTF model:', error);
             });
         }
-    
+
         function setupSpeechRecognition() {
             recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             recognition.lang = 'en-US';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
-    
+
             recognition.onresult = (event) => {
                 const speechResult = event.results[0][0].transcript;
                 console.log('Speech result:', speechResult);
@@ -153,20 +132,20 @@
                 // Make the model speak
                 speakText(speechResult);
             };
-    
+
             recognition.onspeechend = () => {
                 recognition.stop();
             };
-    
+
             recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
             };
-    
+
             recognition.onend = () => {
                 recognition.start();
             };
         }
-    
+
         function sendTextToFirebase(text) {
             db.collection("Questions").add({
                 speechResult: text,
@@ -177,13 +156,13 @@
                 console.error("Error adding document: ", error);
             });
         }
-    
+
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-    
+
         function onSelect() {
             if (reticle.visible && model) {
                 model.position.setFromMatrixPosition(reticle.matrix);
@@ -198,86 +177,83 @@
                 }
             }
         }
-    
+
         function createButtons() {
             const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
             const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
             const rotateLeftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
             const rotateRightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    
+
             increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
             increaseButton.visible = false; // Initially hide the button
             increaseButton.userData = { isIncreaseButton: true };
             scene.add(increaseButton);
-    
+
             decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
             decreaseButton.visible = false; // Initially hide the button
             decreaseButton.userData = { isDecreaseButton: true };
             scene.add(decreaseButton);
-    
+
             rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
             rotateLeftButton.visible = false; // Initially hide the button
             rotateLeftButton.userData = { isRotateLeftButton: true };
             scene.add(rotateLeftButton);
-    
+
             rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
             rotateRightButton.visible = false; // Initially hide the button
             rotateRightButton.userData = { isRotateRightButton: true };
             scene.add(rotateRightButton);
         }
-    
+
         function positionButtons(matrix) {
             increaseButton.position.setFromMatrixPosition(matrix);
             decreaseButton.position.setFromMatrixPosition(matrix);
             rotateLeftButton.position.setFromMatrixPosition(matrix);
             rotateRightButton.position.setFromMatrixPosition(matrix);
-    
+
             increaseButton.position.y += 0.15;
             decreaseButton.position.y -= 0.15;
             rotateLeftButton.position.x -= 0.15;
             rotateRightButton.position.x += 0.15;
         }
-    
+
         function setButtonVisibility(visible) {
             increaseButton.visible = visible;
             decreaseButton.visible = visible;
             rotateLeftButton.visible = visible;
             rotateRightButton.visible = visible;
         }
-    
+
         function animate() {
             renderer.setAnimationLoop(render);
             if (mixer) mixer.update(0.01);
         }
-    
-        
+
         function render(timestamp, frame) {
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
-    
+
                 if (hitTestSourceRequested === false) {
                     session.requestReferenceSpace('viewer').then((referenceSpace) => {
                         session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
-    
+
                     session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
-    
+
                     hitTestSourceRequested = true;
                 }
-    
+
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
-    
-                    if (hitTestResults.length) {
+                    if (hitTestResults.length > 0) {
                         const hit = hitTestResults[0];
-    
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
                     } else {
@@ -285,26 +261,28 @@
                     }
                 }
             }
-    
+
             renderer.render(scene, camera);
         }
-    
+
         function speakText(text) {
             const utterance = new SpeechSynthesisUtterance(text);
             window.speechSynthesis.speak(utterance);
         }
     </script>
-    
+
     <style>
         body {
             margin: 0;
             overflow: hidden;
         }
+        #ar-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
     </style>
-    
-    <body>
-        <div id="ar-container"></div>
-    </body>
-    
 </body>
 </html>
