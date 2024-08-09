@@ -17,6 +17,19 @@
         canvas {
             display: block;
         }
+        #question-popup {
+            display: none;
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 18px;
+            z-index: 1000;
+        }
     </style>
     <script type="importmap">
         {
@@ -33,6 +46,8 @@
 </head>
 <body>
     <div id="ar-container"></div>
+    <div id="question-popup"></div> <!-- Popup to display the question -->
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -249,27 +264,18 @@
             rotateRightButton.visible = false; // Initially hide the button
             rotateRightButton.userData = { isRotateRightButton: true };
             scene.add(rotateRightButton);
-
-            const buttonController = renderer.xr.getController(1);
-            buttonController.addEventListener('select', onButtonSelect);
-            scene.add(buttonController);
         }
 
         function positionButtons(matrix) {
-            const distance = 0.2;
-            const positions = [
-                { button: increaseButton, x: -distance, z: -distance },
-                { button: decreaseButton, x: distance, z: -distance },
-                { button: rotateLeftButton, x: -distance, z: distance },
-                { button: rotateRightButton, x: distance, z: distance }
-            ];
+            increaseButton.position.setFromMatrixPosition(matrix);
+            decreaseButton.position.setFromMatrixPosition(matrix);
+            rotateLeftButton.position.setFromMatrixPosition(matrix);
+            rotateRightButton.position.setFromMatrixPosition(matrix);
 
-            positions.forEach(({ button, x, z }) => {
-                button.position.setFromMatrixPosition(matrix);
-                button.position.x += x;
-                button.position.z += z;
-                button.visible = true; // Make the button visible
-            });
+            increaseButton.position.y += 0.15;
+            decreaseButton.position.y -= 0.15;
+            rotateLeftButton.position.x -= 0.15;
+            rotateRightButton.position.x += 0.15;
         }
 
         function setButtonVisibility(visible) {
@@ -279,32 +285,23 @@
             rotateRightButton.visible = visible;
         }
 
-        function onButtonSelect(event) {
-            const selectedObject = event.target;
-            const objectData = selectedObject.userData;
-
-            if (objectData.isIncreaseButton) {
+        function onButtonPressed(button) {
+            if (button.userData.isIncreaseButton) {
                 currentScale += 0.01;
-                model.scale.set(currentScale, currentScale, currentScale);
-            } else if (objectData.isDecreaseButton) {
+            } else if (button.userData.isDecreaseButton) {
                 currentScale -= 0.01;
-                model.scale.set(currentScale, currentScale, currentScale);
-            } else if (objectData.isRotateLeftButton) {
+            } else if (button.userData.isRotateLeftButton) {
                 model.rotation.y += 0.1;
-            } else if (objectData.isRotateRightButton) {
+            } else if (button.userData.isRotateRightButton) {
                 model.rotation.y -= 0.1;
             }
-        }
 
-        function speakText(text) {
-            const synth = window.speechSynthesis;
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US';
-            synth.speak(utterance);
+            model.scale.set(currentScale, currentScale, currentScale);
         }
 
         function animate() {
             renderer.setAnimationLoop(render);
+            if (mixer) mixer.update(0.01);
         }
 
         function render(timestamp, frame) {
@@ -313,13 +310,13 @@
                 const session = renderer.xr.getSession();
 
                 if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then(function (referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
+                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', function () {
+                    session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
@@ -333,21 +330,34 @@
                     if (hitTestResults.length) {
                         const hit = hitTestResults[0];
                         const referenceSpace = renderer.xr.getReferenceSpace();
+                        const hitPose = hit.getPose(referenceSpace);
 
                         reticle.visible = true;
-                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                        reticle.matrix.fromArray(hitPose.transform.matrix);
                     } else {
                         reticle.visible = false;
                     }
                 }
             }
 
-            if (mixer) {
-                const delta = clock.getDelta();
-                mixer.update(delta);
-            }
-
             renderer.render(scene, camera);
+        }
+
+        function speakText(text) {
+            const synth = window.speechSynthesis;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            synth.speak(utterance);
+
+            // Show the text popup
+            const popup = document.getElementById('question-popup');
+            popup.textContent = text;
+            popup.style.display = 'block';
+
+            // Hide the popup after 5 seconds
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 5000);
         }
     </script>
 </body>
