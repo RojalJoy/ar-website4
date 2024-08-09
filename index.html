@@ -13,6 +13,20 @@
             height: 100vh;
             position: relative;
             overflow: hidden;
+            display: none; /* Hide AR container initially */
+        }
+        #start-ar-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 18px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
         canvas {
             display: block;
@@ -33,6 +47,8 @@
 </head>
 <body>
     <div id="ar-container"></div>
+    <button id="start-ar-button">Start AR</button>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -65,9 +81,13 @@
         let recognition;
         let initialGreeting = false;
 
-        // Initialize the scene
-        init();
-        animate();
+        // Initialize the scene only when AR is started
+        document.getElementById('start-ar-button').addEventListener('click', () => {
+            document.getElementById('start-ar-button').style.display = 'none'; // Hide start button
+            document.getElementById('ar-container').style.display = 'block'; // Show AR container
+            init(); // Initialize AR
+            animate(); // Start the animation loop
+        });
 
         function init() {
             console.log('Initializing scene...');
@@ -224,130 +244,101 @@
         }
 
         function createButtons() {
-            const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
-            const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const rotateLeftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-            const rotateRightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            increaseButton = createButton('+', '20px', '20px', () => {
+                console.log('Increase button clicked.');
+                currentScale += 0.01;
+                model.scale.set(currentScale, currentScale, currentScale);
+            });
 
-            increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
-            increaseButton.visible = false; // Initially hide the button
-            increaseButton.userData = { isIncreaseButton: true };
-            scene.add(increaseButton);
+            decreaseButton = createButton('-', '20px', '60px', () => {
+                console.log('Decrease button clicked.');
+                currentScale -= 0.01;
+                model.scale.set(currentScale, currentScale, currentScale);
+            });
 
-            decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
-            decreaseButton.visible = false; // Initially hide the button
-            decreaseButton.userData = { isDecreaseButton: true };
-            scene.add(decreaseButton);
+            rotateLeftButton = createButton('⟲', '60px', '20px', () => {
+                console.log('Rotate left button clicked.');
+                model.rotation.y += 0.1;
+            });
 
-            rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
-            rotateLeftButton.visible = false; // Initially hide the button
-            rotateLeftButton.userData = { isRotateLeftButton: true };
-            scene.add(rotateLeftButton);
+            rotateRightButton = createButton('⟳', '60px', '60px', () => {
+                console.log('Rotate right button clicked.');
+                model.rotation.y -= 0.1;
+            });
 
-            rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
-            rotateRightButton.visible = false; // Initially hide the button
-            rotateRightButton.userData = { isRotateRightButton: true };
-            scene.add(rotateRightButton);
-
-            const buttonController = renderer.xr.getController(1);
-            buttonController.addEventListener('select', onButtonSelect);
-            scene.add(buttonController);
+            setButtonVisibility(false);
         }
 
-        function positionButtons(matrix) {
-            const distance = 0.2;
-            const positions = [
-                { button: increaseButton, x: -distance, z: -distance },
-                { button: decreaseButton, x: distance, z: -distance },
-                { button: rotateLeftButton, x: -distance, z: distance },
-                { button: rotateRightButton, x: distance, z: distance }
-            ];
-
-            positions.forEach(({ button, x, z }) => {
-                button.position.setFromMatrixPosition(matrix);
-                button.position.x += x;
-                button.position.z += z;
-                button.visible = true; // Make the button visible
-            });
+        function createButton(label, right, bottom, onClick) {
+            const button = document.createElement('button');
+            button.textContent = label;
+            button.style.position = 'absolute';
+            button.style.right = right;
+            button.style.bottom = bottom;
+            button.style.padding = '10px';
+            button.style.fontSize = '24px';
+            button.style.backgroundColor = '#007BFF';
+            button.style.color = '#fff';
+            button.style.border = 'none';
+            button.style.borderRadius = '5px';
+            button.style.cursor = 'pointer';
+            button.addEventListener('click', onClick);
+            document.body.appendChild(button);
+            return button;
         }
 
         function setButtonVisibility(visible) {
-            increaseButton.visible = visible;
-            decreaseButton.visible = visible;
-            rotateLeftButton.visible = visible;
-            rotateRightButton.visible = visible;
+            increaseButton.style.display = visible ? 'block' : 'none';
+            decreaseButton.style.display = visible ? 'block' : 'none';
+            rotateLeftButton.style.display = visible ? 'block' : 'none';
+            rotateRightButton.style.display = visible ? 'block' : 'none';
         }
 
-        function onButtonSelect(event) {
-            const selectedObject = event.target;
-            const objectData = selectedObject.userData;
-
-            if (objectData.isIncreaseButton) {
-                currentScale += 0.01;
-                model.scale.set(currentScale, currentScale, currentScale);
-            } else if (objectData.isDecreaseButton) {
-                currentScale -= 0.01;
-                model.scale.set(currentScale, currentScale, currentScale);
-            } else if (objectData.isRotateLeftButton) {
-                model.rotation.y += 0.1;
-            } else if (objectData.isRotateRightButton) {
-                model.rotation.y -= 0.1;
-            }
-        }
-
-        function speakText(text) {
-            const synth = window.speechSynthesis;
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US';
-            synth.speak(utterance);
+        function positionButtons(matrix) {
+            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+            increaseButton.style.right = (window.innerWidth / 2 - position.x * 100) + 'px';
+            increaseButton.style.bottom = (window.innerHeight / 2 - position.y * 100 - 60) + 'px';
+            decreaseButton.style.right = (window.innerWidth / 2 - position.x * 100) + 'px';
+            decreaseButton.style.bottom = (window.innerHeight / 2 - position.y * 100) + 'px';
+            rotateLeftButton.style.right = (window.innerWidth / 2 - position.x * 100 - 40) + 'px';
+            rotateLeftButton.style.bottom = (window.innerHeight / 2 - position.y * 100 - 60) + 'px';
+            rotateRightButton.style.right = (window.innerWidth / 2 - position.x * 100 + 40) + 'px';
+            rotateRightButton.style.bottom = (window.innerHeight / 2 - position.y * 100 - 60) + 'px';
         }
 
         function animate() {
-            renderer.setAnimationLoop(render);
-        }
-
-        function render(timestamp, frame) {
-            if (frame) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = renderer.xr.getSession();
-
-                if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then(function (referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
-                            hitTestSource = source;
-                        });
-                    });
-
-                    session.addEventListener('end', function () {
-                        hitTestSourceRequested = false;
-                        hitTestSource = null;
-                    });
-
-                    hitTestSourceRequested = true;
+            renderer.setAnimationLoop(function() {
+                if (model && mixer) {
+                    mixer.update(renderer.xr.getFrame().delta);
                 }
 
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-                    if (hitTestResults.length) {
-                        const hit = hitTestResults[0];
+                if (reticle.visible) {
+                    reticle.visible = false;
+                    const session = renderer.xr.getSession();
+                    if (session) {
                         const referenceSpace = renderer.xr.getReferenceSpace();
-
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-                    } else {
-                        reticle.visible = false;
+                        session.requestAnimationFrame((time, frame) => {
+                            const viewerPose = frame.getViewerPose(referenceSpace);
+                            if (viewerPose) {
+                                const hitTestResults = frame.getHitTestResults(hitTestSource);
+                                if (hitTestResults.length > 0) {
+                                    const hit = hitTestResults[0];
+                                    reticle.visible = true;
+                                    reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                                }
+                            }
+                        });
                     }
                 }
-            }
 
-            if (mixer) {
-                const delta = clock.getDelta();
-                mixer.update(delta);
-            }
+                renderer.render(scene, camera);
+            });
+        }
 
-            renderer.render(scene, camera);
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = speechSynthesis.getVoices().find(voice => voice.lang === 'en-US');
+            speechSynthesis.speak(utterance);
         }
     </script>
 </body>
