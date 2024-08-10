@@ -7,15 +7,49 @@
     <style>
         body {
             margin: 0;
+            overflow: hidden;
         }
         #ar-container {
             width: 100vw;
             height: 100vh;
             position: relative;
-            overflow: hidden;
         }
         canvas {
             display: block;
+        }
+        .button-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .left-buttons {
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .right-buttons {
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .button-label {
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .button {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 50%;
         }
     </style>
     <script type="importmap">
@@ -33,6 +67,30 @@
 </head>
 <body>
     <div id="ar-container"></div>
+    
+
+
+
+    <!-- Left Buttons -->
+    <div class="button-container left-buttons">
+        <div class="button-label">Rotate Left</div>
+        <button class="button" id="rotate-left-button">⟲</button>
+        <div class="button-label">Size Down</div>
+        <button class="button" id="decrease-button">−</button>
+    </div>
+
+    <!-- Right Buttons -->
+    <div class="button-container right-buttons">
+        <div class="button-label">Rotate Right</div>
+        <button class="button" id="rotate-right-button">⟳</button>
+        <div class="button-label">Size Up</div>
+        <button class="button" id="increase-button">+</button>
+    </div>
+
+
+
+
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script type="module">
         import * as THREE from 'three';
@@ -63,6 +121,26 @@
         let rotateRightButton = null;
         let currentScale = 0.05;
         let recognition;
+
+
+        function createButtons() {
+            const increaseButton = document.getElementById('increase-button');
+            const decreaseButton = document.getElementById('decrease-button');
+            const rotateLeftButton = document.getElementById('rotate-left-button');
+            const rotateRightButton = document.getElementById('rotate-right-button');
+
+            // Add event listeners to buttons
+            increaseButton.addEventListener('click', () => onResizeButtonClick(true));
+            decreaseButton.addEventListener('click', () => onResizeButtonClick(false));
+            rotateLeftButton.addEventListener('click', () => onRotateButtonClick(false));
+            rotateRightButton.addEventListener('click', () => onRotateButtonClick(true));
+        }
+
+
+        
+
+
+
 
         // Initialize the scene
         init();
