@@ -92,8 +92,24 @@
             // Add the AR button to the container
             arContainer.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
 
-            // Preload the GLTF model
-            preloadModel();
+            // Load the GLTF model
+            const loader = new GLTFLoader();
+            loader.load('scene.gltf', function(gltf) {
+                console.log('GLTF model loaded.');
+                model = gltf.scene;
+                model.scale.set(currentScale, currentScale, currentScale);
+                model.visible = false; // Initially hide the model
+                scene.add(model);
+
+                // Set up the animation mixer
+                mixer = new THREE.AnimationMixer(model);
+                const clips = gltf.animations;
+                if (clips && clips.length > 0) {
+                    clips.forEach(clip => mixer.clipAction(clip).play());
+                }
+            }, undefined, function(error) {
+                console.error('Error loading GLTF model:', error);
+            });
 
             // Set up the AR controller
             controller = renderer.xr.getController(0);
@@ -116,26 +132,6 @@
 
             // Initialize speech recognition
             setupSpeechRecognition();
-        }
-
-        function preloadModel() {
-            const loader = new GLTFLoader();
-            loader.load('scene.gltf', function(gltf) {
-                console.log('GLTF model preloaded.');
-                model = gltf.scene;
-                model.scale.set(currentScale, currentScale, currentScale);
-                model.visible = false; // Keep the model hidden until AR session starts
-                scene.add(model);
-
-                // Set up the animation mixer
-                mixer = new THREE.AnimationMixer(model);
-                const clips = gltf.animations;
-                if (clips && clips.length > 0) {
-                    clips.forEach(clip => mixer.clipAction(clip).play());
-                }
-            }, undefined, function(error) {
-                console.error('Error preloading GLTF model:', error);
-            });
         }
 
         function setupSpeechRecognition() {
@@ -234,19 +230,6 @@
             scene.add(rotateRightButton);
         }
 
-        function positionButtons(matrix) {
-            const position = new THREE.Vector3();
-            const rotation = new THREE.Euler();
-            const scale = new THREE.Vector3();
-            matrix.decompose(position, rotation, scale);
-
-            const offset = 0.2;
-            increaseButton.position.set(position.x + offset, position.y, position.z);
-            decreaseButton.position.set(position.x - offset, position.y, position.z);
-            rotateLeftButton.position.set(position.x, position.y, position.z + offset);
-            rotateRightButton.position.set(position.x, position.y, position.z - offset);
-        }
-
         function setButtonVisibility(visible) {
             increaseButton.visible = visible;
             decreaseButton.visible = visible;
@@ -254,50 +237,123 @@
             rotateRightButton.visible = visible;
         }
 
+        function positionButtons(matrix) {
+            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+            increaseButton.position.copy(position);
+            increaseButton.position.y += 0.1; // Position the increase button above the model
+            increaseButton.position.x -= 0.2; // Position to the far left
+
+            decreaseButton.position.copy(position);
+            decreaseButton.position.y += 0.1; // Position the decrease button above the model
+            decreaseButton.position.x += 0.2; // Position to the far right
+
+            rotateLeftButton.position.copy(position);
+            rotateLeftButton.position.y += 0.1; // Position the rotate left button above the model
+            rotateLeftButton.position.x -= 0.1; // Position to the left
+
+            rotateRightButton.position.copy(position);
+            rotateRightButton.position.y += 0.1; // Position the rotate right button above the model
+            rotateRightButton.position.x += 0.1; // Position to the right
+        }
+
+        function onResizeButtonClick(increase) {
+            if (increase) {
+                currentScale += 0.01;
+            } else {
+                currentScale = Math.max(0.01, currentScale - 0.01);
+            }
+            if (model) {
+                model.scale.set(currentScale, currentScale, currentScale);
+                console.log('Resized model to scale:', currentScale);
+            }
+        }
+
+        function onRotateButtonClick(clockwise) {
+            if (model) {
+                const rotationAmount = clockwise ? -Math.PI / 8 : Math.PI / 8;
+                model.rotation.y += rotationAmount;
+                console.log('Rotated model by:', rotationAmount);
+            }
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
+        }
+
         function animate() {
             renderer.setAnimationLoop(render);
         }
 
         function render(timestamp, frame) {
-            if (model && mixer) {
-                mixer.update(0.01);
-            }
-
-            if (hitTestSourceRequested === false) {
+            if (frame) {
+                const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
-                if (session !== null) {
-                    session.requestReferenceSpace('viewer').then(function(referenceSpace) {
-                        session.requestHitTestSource({ space: referenceSpace }).then(function(source) {
+
+                if (hitTestSourceRequested === false) {
+                    session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                        session.requestHitTestSource({ space: referenceSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
 
-                    session.addEventListener('end', function() {
+                    session.addEventListener('end', () => {
                         hitTestSourceRequested = false;
                         hitTestSource = null;
                     });
 
                     hitTestSourceRequested = true;
                 }
+
+                if (hitTestSource) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+                    if (hitTestResults.length) {
+                        const hit = hitTestResults[0];
+
+                        reticle.visible = true;
+                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                    } else {
+                        reticle.visible = false;
+                    }
+                }
             }
 
-            if (hitTestSource) {
-                const hitTestResults = frame.getHitTestResults(hitTestSource);
-                if (hitTestResults.length > 0) {
-                    const hit = hitTestResults[0];
-                    reticle.visible = true;
-                    reticle.matrix.fromArray(hit.getPose(renderer.xr.getReferenceSpace()).transform.matrix);
-                } else {
-                    reticle.visible = false;
-                }
+            if (mixer) {
+                mixer.update(0.01);
             }
 
             renderer.render(scene, camera);
         }
 
-        function speakText(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            window.speechSynthesis.speak(utterance);
+        document.addEventListener('click', (event) => {
+            const intersects = getIntersects(event.clientX, event.clientY);
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if (object.userData.isIncreaseButton) {
+                    onResizeButtonClick(true);
+                    speakText('Increasing size');
+                } else if (object.userData.isDecreaseButton) {
+                    onResizeButtonClick(false);
+                    speakText('Decreasing size');
+                } else if (object.userData.isRotateLeftButton) {
+                    onRotateButtonClick(false);
+                    speakText('Rotating left');
+                } else if (object.userData.isRotateRightButton) {
+                    onRotateButtonClick(true);
+                    speakText('Rotating right');
+                }
+            }
+        });
+
+        function getIntersects(x, y) {
+            const mouse = new THREE.Vector2();
+            mouse.x = (x / window.innerWidth) * 2 - 1;
+            mouse.y = -(y / window.innerHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            return raycaster.intersectObjects([increaseButton, decreaseButton, rotateLeftButton, rotateRightButton]);
         }
     </script>
 </body>
