@@ -189,72 +189,65 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onSelect() {
-            console.log('Controller select event.');
-            if (reticle.visible && model) {
-                console.log('Placing model at reticle position.');
-                model.position.setFromMatrixPosition(reticle.matrix);
-                model.visible = true;
-                reticle.visible = false;
-                setButtonVisibility(true); // Show buttons when model is placed
-                positionButtons(reticle.matrix);
-                speakText("Hello, how can I assist you today?");
-            }
-        }
-
         function createButtons() {
-            const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
-            const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const rotateLeftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-            const rotateRightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
+    const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const rotateLeftMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    const rotateRightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 
-            increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
-            increaseButton.visible = false; // Initially hide the button
-            increaseButton.userData = { isIncreaseButton: true };
-            scene.add(increaseButton);
+    increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
+    increaseButton.visible = false; // Initially hide the button
+    increaseButton.userData = { isIncreaseButton: true };
+    model.add(increaseButton); // Attach to model
 
-            decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
-            decreaseButton.visible = false; // Initially hide the button
-            decreaseButton.userData = { isDecreaseButton: true };
-            scene.add(decreaseButton);
+    decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
+    decreaseButton.visible = false; // Initially hide the button
+    decreaseButton.userData = { isDecreaseButton: true };
+    model.add(decreaseButton); // Attach to model
 
-            rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
-            rotateLeftButton.visible = false; // Initially hide the button
-            rotateLeftButton.userData = { isRotateLeftButton: true };
-            scene.add(rotateLeftButton);
+    rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
+    rotateLeftButton.visible = false; // Initially hide the button
+    rotateLeftButton.userData = { isRotateLeftButton: true };
+    model.add(rotateLeftButton); // Attach to model
 
-            rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
-            rotateRightButton.visible = false; // Initially hide the button
-            rotateRightButton.userData = { isRotateRightButton: true };
-            scene.add(rotateRightButton);
-        }
+    rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
+    rotateRightButton.visible = false; // Initially hide the button
+    rotateRightButton.userData = { isRotateRightButton: true };
+    model.add(rotateRightButton); // Attach to model
+}
 
-        function setButtonVisibility(visible) {
-            increaseButton.visible = visible;
-            decreaseButton.visible = visible;
-            rotateLeftButton.visible = visible;
-            rotateRightButton.visible = visible;
-        }
+function positionButtons() {
+    if (model) {
+        const padding = 0.2; // Adjust the padding distance as needed
 
-        function positionButtons(matrix) {
-            const position = new THREE.Vector3().setFromMatrixPosition(matrix);
-            increaseButton.position.copy(position);
-            increaseButton.position.y += 0.1; // Position the increase button above the model
-            increaseButton.position.x -= 0.2; // Position to the far left
+        // Set positions relative to the model's center
+        increaseButton.position.set(padding, 0.1, 0); // Right side of the model
+        decreaseButton.position.set(-padding, 0.1, 0); // Left side of the model
+        rotateLeftButton.position.set(0, 0.1, padding); // Front side of the model
+        rotateRightButton.position.set(0, 0.1, -padding); // Back side of the model
+    }
+}
 
-            decreaseButton.position.copy(position);
-            decreaseButton.position.y += 0.1; // Position the decrease button above the model
-            decreaseButton.position.x += 0.2; // Position to the far right
+function onSelect() {
+    console.log('Controller select event.');
+    if (reticle.visible && model) {
+        console.log('Placing model at reticle position.');
+        model.position.setFromMatrixPosition(reticle.matrix);
+        model.visible = true;
+        reticle.visible = false;
+        setButtonVisibility(true); // Show buttons when model is placed
+        positionButtons(); // Position buttons relative to the model
+        speakText("Hello, how can I assist you today?");
+    }
+}
 
-            rotateLeftButton.position.copy(position);
-            rotateLeftButton.position.y += 0.1; // Position the rotate left button above the model
-            rotateLeftButton.position.x -= 0.1; // Position to the left
-
-            rotateRightButton.position.copy(position);
-            rotateRightButton.position.y += 0.1; // Position the rotate right button above the model
-            rotateRightButton.position.x += 0.1; // Position to the right
-        }
+function setButtonVisibility(visible) {
+    increaseButton.visible = visible;
+    decreaseButton.visible = visible;
+    rotateLeftButton.visible = visible;
+    rotateRightButton.visible = visible;
+}
 
         function onResizeButtonClick(increase) {
             if (increase) {
