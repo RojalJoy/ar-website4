@@ -192,33 +192,7 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-
-        function onSelect() {
-            console.log('Controller select event.');
-            if (reticle.visible && model) {
-                console.log('Placing model at reticle position.');
-                model.position.setFromMatrixPosition(reticle.matrix);
-                model.visible = true;
-                reticle.visible = false;
-                setButtonVisibility(true); // Show buttons when model is placed
-                positionButtons(reticle.matrix);
-                speakText("Hello, how can I assist you today?");
-            }
-        }
-
-        function positionButtons() {
-    const offset = 0.2;
-
-    // Position the increase and decrease size buttons on the right side
-    increaseButton.position.set(camera.position.x + 1.0, camera.position.y, camera.position.z - 0.5);
-    decreaseButton.position.set(camera.position.x + 1.0, camera.position.y, camera.position.z + 0.5);
-
-    // Position the rotate buttons on the left side
-    rotateLeftButton.position.set(camera.position.x - 1.0, camera.position.y, camera.position.z - 0.5);
-    rotateRightButton.position.set(camera.position.x - 1.0, camera.position.y, camera.position.z + 0.5);
-}
-
-function createButtons() {
+        function createButtons() {
     const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
     const increaseMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     const decreaseMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -228,33 +202,55 @@ function createButtons() {
     increaseButton = new THREE.Mesh(buttonGeometry, increaseMaterial);
     increaseButton.visible = false; // Initially hide the button
     increaseButton.userData = { isIncreaseButton: true };
-    scene.add(increaseButton);
+    model.add(increaseButton); // Attach to model
 
     decreaseButton = new THREE.Mesh(buttonGeometry, decreaseMaterial);
     decreaseButton.visible = false; // Initially hide the button
     decreaseButton.userData = { isDecreaseButton: true };
-    scene.add(decreaseButton);
+    model.add(decreaseButton); // Attach to model
 
     rotateLeftButton = new THREE.Mesh(buttonGeometry, rotateLeftMaterial);
     rotateLeftButton.visible = false; // Initially hide the button
     rotateLeftButton.userData = { isRotateLeftButton: true };
-    scene.add(rotateLeftButton);
+    model.add(rotateLeftButton); // Attach to model
 
     rotateRightButton = new THREE.Mesh(buttonGeometry, rotateRightMaterial);
     rotateRightButton.visible = false; // Initially hide the button
     rotateRightButton.userData = { isRotateRightButton: true };
-    scene.add(rotateRightButton);
-
-    // Position buttons when the model is placed
-    positionButtons();
+    model.add(rotateRightButton); // Attach to model
 }
 
-        function setButtonVisibility(visible) {
-            increaseButton.visible = visible;
-            decreaseButton.visible = visible;
-            rotateLeftButton.visible = visible;
-            rotateRightButton.visible = visible;
-        }
+function positionButtons() {
+    if (model) {
+        const padding = 0.2; // Adjust the padding distance as needed
+
+        increaseButton.position.set(padding, 0, 0); // Right side of the model
+        decreaseButton.position.set(-padding, 0, 0); // Left side of the model
+        rotateLeftButton.position.set(0, 0, padding); // Front side of the model
+        rotateRightButton.position.set(0, 0, -padding); // Back side of the model
+    }
+}
+
+function onSelect() {
+    console.log('Controller select event.');
+    if (reticle.visible && model) {
+        console.log('Placing model at reticle position.');
+        model.position.setFromMatrixPosition(reticle.matrix);
+        model.visible = true;
+        reticle.visible = false;
+        setButtonVisibility(true); // Show buttons when model is placed
+        positionButtons(); // Position buttons relative to the model
+        speakText("Hello, how can I assist you today?");
+    }
+}
+
+function setButtonVisibility(visible) {
+    increaseButton.visible = visible;
+    decreaseButton.visible = visible;
+    rotateLeftButton.visible = visible;
+    rotateRightButton.visible = visible;
+}
+
 
         function animate() {
             renderer.setAnimationLoop(render);
