@@ -355,25 +355,6 @@
             renderer.render(scene, camera);
         }
 
-        document.addEventListener('click', (event) => {
-            const intersects = getIntersects(event.clientX, event.clientY);
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-                if (object.userData.isIncreaseButton) {
-                    onResizeButtonClick(true);
-                    speakText('Increasing size');
-                } else if (object.userData.isDecreaseButton) {
-                    onResizeButtonClick(false);
-                    speakText('Decreasing size');
-                } else if (object.userData.isRotateLeftButton) {
-                    onRotateButtonClick(false);
-                    speakText('Rotating left');
-                } else if (object.userData.isRotateRightButton) {
-                    onRotateButtonClick(true);
-                    speakText('Rotating right');
-                }
-            }
-        });
 
         function getIntersects(x, y) {
             const mouse = new THREE.Vector2();
