@@ -117,7 +117,7 @@
             scene.add(controller);
 
             // Create the reticle for hit testing
-            const geometry = new THREE.RingGeometry(0.1, 0.11, 32).rotateX(- Math.PI / 2);
+            const geometry = new THREE.RingGeometry(0.01, 0.011, 32).rotateX(- Math.PI / 2);
             const material = new THREE.MeshBasicMaterial();
             reticle = new THREE.Mesh(geometry, material);
             reticle.matrixAutoUpdate = false;
@@ -240,7 +240,7 @@
         function positionButtons(matrix) {
             const position = new THREE.Vector3().setFromMatrixPosition(matrix);
             increaseButton.position.copy(position);
-            increaseButton.position.y += 10; // Position the increase button above the model
+            increaseButton.position.y += 0.1; // Position the increase button above the model
             increaseButton.position.x -= 0.2; // Position to the far left
 
             decreaseButton.position.copy(position);
