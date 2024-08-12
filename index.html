@@ -240,20 +240,20 @@
         function positionButtons(matrix) {
             const position = new THREE.Vector3().setFromMatrixPosition(matrix);
             increaseButton.position.copy(position);
-            increaseButton.position.y += 0.25; // Position the increase button above the model
-            increaseButton.position.x -= 0; // Position to the far left
+            increaseButton.position.y += 0.1; // Position the increase button above the model
+            increaseButton.position.x -= 0.1; // Position to the far left
 
             decreaseButton.position.copy(position);
             decreaseButton.position.y += 0.1; // Position the decrease button above the model
-            decreaseButton.position.x += 0.2; // Position to the far right
+            decreaseButton.position.x += 0.1; // Position to the far right
 
             rotateLeftButton.position.copy(position);
-            rotateLeftButton.position.y += 0.1; // Position the rotate left button above the model
-            rotateLeftButton.position.x -= 0.1; // Position to the left
+            rotateLeftButton.position.y += 0.25; // Position the rotate left button above the model
+            rotateLeftButton.position.x -= 0.05; // Position to the left
 
             rotateRightButton.position.copy(position);
-            rotateRightButton.position.y += 0.1; // Position the rotate right button above the model
-            rotateRightButton.position.x += 0.1; // Position to the right
+            rotateRightButton.position.y += 0.25; // Position the rotate right button above the model
+            rotateRightButton.position.x += 0.15; // Position to the right
         }
 
         function onResizeButtonClick(increase) {
