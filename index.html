@@ -240,8 +240,8 @@
         function positionButtons(matrix) {
             const position = new THREE.Vector3().setFromMatrixPosition(matrix);
             increaseButton.position.copy(position);
-            increaseButton.position.y += 0.5; // Position the increase button above the model
-            increaseButton.position.x -= 0.2; // Position to the far left
+            increaseButton.position.y += 0.25; // Position the increase button above the model
+            increaseButton.position.x -= 0; // Position to the far left
 
             decreaseButton.position.copy(position);
             decreaseButton.position.y += 0.1; // Position the decrease button above the model
