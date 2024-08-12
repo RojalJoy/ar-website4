@@ -188,25 +188,48 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-        let hasSpoken = false; // Add this flag to track if the AR has spoke
-        function onSelect() {
-            console.log('Controller select event.');
-            if (reticle.visible && model) {
-                console.log('Placing model at reticle position.');
-                model.position.setFromMatrixPosition(reticle.matrix);
-                model.visible = true;
-                reticle.visible = false;
-                setButtonVisibility(true); // Show buttons when model is placed
-                positionButtons(reticle.matrix);
 
+        function startReadingDescriptions() {
+            if (!model) return;
 
-               
-        if (!hasSpoken) { // Check if the AR has already spoken
-            speakText("Starting Your Mock Interview");
-            hasSpoken = true; // Set the flag to true after speaking
+            const intervalId = setInterval(() => {
+                getRandomDescriptionAndSpeak();
+            }, 20000); // 20000 milliseconds = 20 seconds
         }
+
+        function getRandomDescriptionAndSpeak() {
+            db.collection("Deep").get().then((querySnapshot) => {
+                const docs = querySnapshot.docs;
+                if (docs.length > 0) {
+                    const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+                    const description = randomDoc.data().DESCRIPTION;
+                    console.log('Random description:', description);
+                    speakText(description);
+                }
+            }).catch((error) => {
+                console.error("Error retrieving random description:", error);
+            });
+        }
+        
+        let hasSpoken = false; // Add this flag to track if the AR has spoke
+        
+        function onSelect() {
+        console.log('Controller select event.');
+        if (reticle.visible && model) {
+            console.log('Placing model at reticle position.');
+            model.position.setFromMatrixPosition(reticle.matrix);
+            model.visible = true;
+            reticle.visible = false;
+            setButtonVisibility(true); // Show buttons when model is placed
+            positionButtons(reticle.matrix);
+
+            if (!hasSpoken) { // Check if the AR has already spoken
+                speakText("Starting Your Mock Interview");
+                hasSpoken = true; // Set the flag to true after speaking
+                startReadingDescriptions(); // Start reading descriptions every 20 seconds
             }
         }
+    }
 
         function createButtons() {
             const buttonGeometry = new THREE.BoxGeometry(0.1, 0.05, 0.01);
