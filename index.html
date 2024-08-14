@@ -155,6 +155,8 @@
             };
 
             recognition.onspeechend = () => {
+                console.log("SPeech ending after 1 min")
+                delay(60000)
                 console.log('Speech ended.');
                 recognition.stop();
             };
@@ -170,12 +172,7 @@
 
             recognition.start();
 
-            // Set a timeout to stop speech recognition after 1 minute
-            setTimeout(() => {
-            console.log('Stopping speech recognition after 1 minute.');
-            recognition.stop();
-            recognition.onend = null; // Prevent restarting after stop
-            }, 60000); // 60000 ms = 1 minute
+
         }
 
         function sendTextToFirebase(text) {
