@@ -176,7 +176,7 @@
         }
 
         function sendTextToFirebase(text) {
-            db.collection("Questions").add({
+            db.collection("answers").add({
                 speechResult: text,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then((docRef) => {
